@@ -1,0 +1,107 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --gm-bg: #07070b;
+    --gm-bg-elevated: #0e0f17;
+    --gm-surface: #131520;
+    --gm-surface-hover: #1b1e2e;
+    --gm-border: rgba(255, 255, 255, 0.08);
+    --gm-text: #f8fafc;
+    --gm-text-muted: #94a3b8;
+    --gm-glass: rgba(14, 15, 23, 0.78);
+  }
+
+  html.light {
+    --gm-bg: #f6f7fb;
+    --gm-bg-elevated: #ffffff;
+    --gm-surface: #eef0f7;
+    --gm-surface-hover: #e2e6f3;
+    --gm-border: rgba(15, 23, 42, 0.1);
+    --gm-text: #0f172a;
+    --gm-text-muted: #475569;
+    --gm-glass: rgba(255, 255, 255, 0.84);
+  }
+
+  html {
+    scroll-behavior: smooth;
+    background-color: var(--gm-bg);
+    color: var(--gm-text);
+  }
+
+  body {
+    background-color: var(--gm-bg);
+    color: var(--gm-text);
+    font-family: var(--font-sans), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+}
+
+/* Guru Music Rainbow Neon Accents */
+.gm-rainbow-text {
+  background: linear-gradient(90deg, #3b82f6 0%, #ef4444 25%, #f59e0b 50%, #10b981 75%, #8b5cf6 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.gm-rainbow-border {
+  position: relative;
+}
+
+.gm-rainbow-border::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(120deg, #3b82f6, #ef4444, #f59e0b, #10b981, #8b5cf6);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+.gm-rainbow-gradient {
+  background: linear-gradient(90deg, #3b82f6, #ef4444, #f59e0b, #10b981, #8b5cf6);
+}
+
+.gm-glass {
+  background-color: var(--gm-glass);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+.gm-surface {
+  background-color: var(--gm-surface);
+  border: 1px solid var(--gm-border);
+}
+
+.gm-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.gm-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.gm-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.25);
+  border-radius: 9999px;
+}
+
+.gm-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.45);
+}
+
+@keyframes gm-eq-bar {
+  0%, 100% { transform: scaleY(0.35); }
+  50% { transform: scaleY(1); }
+}
+
+.gm-eq-1 { animation: gm-eq-bar 0.75s ease-in-out infinite; }
+.gm-eq-2 { animation: gm-eq-bar 0.6s ease-in-out 0.15s infinite; }
+.gm-eq-3 { animation: gm-eq-bar 0.85s ease-in-out 0.3s infinite; }
+.gm-eq-4 { animation: gm-eq-bar 0.65s ease-in-out 0.1s infinite; }
