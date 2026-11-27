@@ -207,14 +207,37 @@ export function AppShell({
         </nav>
 
         <div className="p-4 border-t border-[var(--gm-border)] space-y-2.5">
-          <a
-            href="/downlaod/GuruMusic.apk"
-            download="GuruMusic.apk"
-            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl gm-rainbow-gradient text-white text-xs font-bold shadow-md shadow-purple-500/20 hover:opacity-95 transition-opacity"
-          >
-            <Download className="h-3.5 w-3.5" />
-            <span>Download Android App</span>
-          </a>
+          <div className="gm-surface rounded-xl p-2.5 space-y-1.5">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--gm-text-muted)] px-1">
+              Download Guru Music App
+            </p>
+            <a
+              href="/downlaod/GuruMusic.apk"
+              download="GuruMusic.apk"
+              className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg gm-rainbow-gradient text-white text-xs font-bold shadow-md shadow-purple-500/20 hover:opacity-95 transition-opacity"
+            >
+              <Download className="h-3.5 w-3.5" />
+              <span>Android APK (2.4 MB)</span>
+            </a>
+            <div className="grid grid-cols-2 gap-1.5">
+              <a
+                href="/downlaod/GuruMusic-Windows.exe"
+                download="GuruMusic-Windows.exe"
+                className="flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-[11px] font-semibold transition-colors"
+              >
+                <Download className="h-3 w-3 text-blue-400" />
+                <span>Windows</span>
+              </a>
+              <a
+                href="/downlaod/GuruMusic-Linux.tar.gz"
+                download="GuruMusic-Linux.tar.gz"
+                className="flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-[11px] font-semibold transition-colors"
+              >
+                <Download className="h-3 w-3 text-emerald-400" />
+                <span>Linux</span>
+              </a>
+            </div>
+          </div>
           <div className="gm-surface rounded-xl p-3">
             <p className="text-[11px] font-bold tracking-wider gm-rainbow-text">
               {BRAND_CONFIG.tagline}

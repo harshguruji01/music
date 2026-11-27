@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=Guru Music
+Comment=Music Beyond Limits — Stream Guru Music by HarshGuruJi
+Exec=__EXEC_PATH__
+Icon=guru-music
+Terminal=false
+Type=Application
+Categories=AudioVideo;Audio;Music;Player;
+StartupWMClass=GuruMusic
