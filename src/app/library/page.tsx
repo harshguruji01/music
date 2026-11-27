@@ -102,7 +102,6 @@ export default function LibraryPage() {
           <EmptyLibraryState
             title="No Favorite Songs Yet"
             subtitle="Tap the heart icon on any song while listening to save it here."
-            showAdminLink={false}
           />
         ) : (
           <div className="space-y-4">
@@ -136,7 +135,6 @@ export default function LibraryPage() {
           <EmptyLibraryState
             title="No Recently Played Tracks"
             subtitle="Start playing any song on Guru Music and your listening history will appear here."
-            showAdminLink={false}
           />
         ) : (
           <div className="gm-surface rounded-2xl p-2 divide-y divide-[var(--gm-border)]">
@@ -169,7 +167,6 @@ export default function LibraryPage() {
             <EmptyLibraryState
               title="No Personal Playlists Yet"
               subtitle="Create a playlist above or use the more-options menu on any track card to save songs to a mix."
-              showAdminLink={false}
             />
           ) : (
             <div className="space-y-5">

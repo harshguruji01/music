@@ -111,7 +111,7 @@ export function CollectionDetailView({
       {tracks.length === 0 ? (
         <EmptyLibraryState
           title={`No Tracks in This ${kind} Yet`}
-          subtitle={`Tracks added to this ${kind.toLowerCase()} in the Admin Control Center will appear here automatically.`}
+          subtitle={`Tracks added to this ${kind.toLowerCase()} will appear here automatically.`}
         />
       ) : (
         <div className="gm-surface rounded-2xl p-2 divide-y divide-[var(--gm-border)]">

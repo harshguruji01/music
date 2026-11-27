@@ -37,7 +37,7 @@ export default function ArtistsPage() {
       ) : artists.length === 0 ? (
         <EmptyLibraryState
           title="No Published Artists Yet"
-          subtitle="Create and publish artist profiles in the Admin Control Center to showcase creators here."
+          subtitle="Published artist profiles and creators will appear here soon."
         />
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 gap-4">

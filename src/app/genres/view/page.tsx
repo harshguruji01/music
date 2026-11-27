@@ -55,7 +55,7 @@ function GenreViewInner() {
       tracks={tracks}
       downloadPolicy={policy}
       emptyTitle={`No ${genre.name} Tracks Published Yet`}
-      emptySubtitle={`Upload and publish tracks tagged with ${genre.name} in the Admin Control Center to populate this category.`}
+      emptySubtitle={`Published tracks tagged with ${genre.name} will appear here soon.`}
     />
   );
 }

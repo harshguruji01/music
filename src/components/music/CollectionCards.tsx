@@ -223,12 +223,10 @@ export function TrackRow({
 
 export function EmptyLibraryState({
   title = "Your Soundstage Awaits",
-  subtitle = "No published tracks are in the library yet. Upload and publish music in the Guru Music Admin Control Center to bring this stage alive.",
-  showAdminLink = true,
+  subtitle = "No published tracks are in the library yet. New music releases will appear here soon.",
 }: {
   title?: string;
   subtitle?: string;
-  showAdminLink?: boolean;
 }) {
   return (
     <div className="gm-surface gm-rainbow-border rounded-3xl p-8 sm:p-12 text-center max-w-2xl mx-auto my-6">
@@ -257,14 +255,6 @@ export function EmptyLibraryState({
           <Music2 className="h-4 w-4 text-blue-400" />
           Browse Genres
         </Link>
-        {showAdminLink && (
-          <Link
-            href="/admin"
-            className="px-5 py-2.5 rounded-full gm-rainbow-gradient text-white text-sm font-semibold shadow-lg shadow-purple-500/20"
-          >
-            Open Admin CMS
-          </Link>
-        )}
       </div>
     </div>
   );

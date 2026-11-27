@@ -37,7 +37,7 @@ export default function AlbumsPage() {
       ) : albums.length === 0 ? (
         <EmptyLibraryState
           title="No Published Albums Yet"
-          subtitle="Create and publish albums in the Admin Control Center to showcase full releases here."
+          subtitle="Published albums and full releases will appear here soon."
         />
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 gap-4">

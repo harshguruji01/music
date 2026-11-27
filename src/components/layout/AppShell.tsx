@@ -16,7 +16,6 @@ import {
   Moon,
   Music,
   Search,
-  ShieldCheck,
   Sparkles,
   Sun,
   TrendingUp,
@@ -185,7 +184,7 @@ export function AppShell({
           </div>
         </nav>
 
-        <div className="p-4 border-t border-[var(--gm-border)] space-y-2">
+        <div className="p-4 border-t border-[var(--gm-border)]">
           <div className="gm-surface rounded-xl p-3">
             <p className="text-[11px] font-bold tracking-wider gm-rainbow-text">
               {BRAND_CONFIG.tagline}
@@ -194,16 +193,6 @@ export function AppShell({
               {BRAND_CONFIG.secondaryTagline}
             </p>
           </div>
-          <Link
-            href="/admin"
-            className="flex items-center justify-between px-3 py-2 rounded-xl text-xs text-[var(--gm-text-muted)] hover:text-[var(--gm-text)] hover:bg-white/5 transition-colors"
-          >
-            <span className="flex items-center gap-2">
-              <ShieldCheck className="h-3.5 w-3.5 text-amber-400" />
-              Admin CMS
-            </span>
-            <span className="text-[10px] opacity-60">HarshGuruJi</span>
-          </Link>
         </div>
       </aside>
 
@@ -399,14 +388,6 @@ export function AppShell({
                   </Link>
                 );
               })}
-              <Link
-                href="/admin"
-                onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-amber-400"
-              >
-                <ShieldCheck className="h-4 w-4" />
-                Admin Control Center
-              </Link>
             </nav>
           </div>
         </div>

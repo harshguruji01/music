@@ -37,7 +37,7 @@ export default function PlaylistsPage() {
       ) : playlists.length === 0 ? (
         <EmptyLibraryState
           title="No Official Playlists Published Yet"
-          subtitle="Create and publish curated playlists in the Admin Control Center, or create personal mixes in Your Library."
+          subtitle="Curated playlists will appear here soon, or create personal mixes in Your Library."
         />
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 gap-4">

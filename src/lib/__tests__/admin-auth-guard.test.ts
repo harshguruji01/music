@@ -43,6 +43,19 @@ describe("Static-export Admin protection & secret hygiene", () => {
     expect(loginContent).not.toContain('useState("harshguruji01@gmail.com")');
   });
 
+  it("public UI components contain no links to /admin", () => {
+    const appShell = fs.readFileSync(
+      path.resolve(process.cwd(), "src/components/layout/AppShell.tsx"),
+      "utf8"
+    );
+    const collectionCards = fs.readFileSync(
+      path.resolve(process.cwd(), "src/components/music/CollectionCards.tsx"),
+      "utf8"
+    );
+    expect(appShell).not.toContain('href="/admin');
+    expect(collectionCards).not.toContain('href="/admin');
+  });
+
   it("no file inside src/ ever reads process.env.SUPABASE_SERVICE_ROLE_KEY", () => {
     const srcDir = path.resolve(process.cwd(), "src");
     const walk = (dir: string): string[] =>

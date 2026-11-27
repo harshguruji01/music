@@ -231,7 +231,7 @@ function SearchClientInner() {
             {query ? `No matches for "${query}"` : "No published results yet"}
           </h2>
           <p className="text-sm text-[var(--gm-text-muted)] mt-1">
-            Try another song title, artist name, album, or publish tracks from the Admin Control Center.
+            Try another song title, artist name, or album.
           </p>
         </div>
       ) : (
