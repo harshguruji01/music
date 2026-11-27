@@ -1,7 +1,20 @@
+"use client";
+
+import React from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { BrandLogo } from "@/components/brand/BrandLogo";
+import { SongSlugView } from "@/components/music/SongSlugView";
 
 export default function NotFound() {
+  const pathname = usePathname() || "";
+  const match = pathname.match(/^\/songs\/([^/]+)\/?$/);
+  const songSlug = match && match[1] && match[1] !== "view" ? decodeURIComponent(match[1]) : null;
+
+  if (songSlug) {
+    return <SongSlugView slug={songSlug} />;
+  }
+
   return (
     <div className="min-h-[60vh] flex flex-col items-center justify-center text-center px-4 space-y-5">
       <BrandLogo variant="icon" />

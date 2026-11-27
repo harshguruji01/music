@@ -154,7 +154,7 @@ export function FullScreenPlayer({
                 <div className="w-full flex items-center justify-between gap-4 mb-2">
                   <div className="text-left min-w-0">
                     <Link
-                      href={`/songs/view/?slug=${encodeURIComponent(currentTrack.slug)}`}
+                      href={`/songs/${encodeURIComponent(currentTrack.slug)}/`}
                       onClick={() => setFullScreenOpen(false)}
                       className="text-xl sm:text-2xl font-bold truncate block hover:underline"
                     >

@@ -170,7 +170,7 @@ export function TrackRow({
 
       <div className="min-w-0 flex-1">
         <Link
-          href={`/songs/view/?slug=${encodeURIComponent(track.slug)}`}
+          href={`/songs/${encodeURIComponent(track.slug)}/`}
           className={`text-sm font-semibold truncate block hover:underline ${
             isActive ? "gm-rainbow-text" : "text-[var(--gm-text)]"
           }`}

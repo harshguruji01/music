@@ -162,7 +162,7 @@ function SongDetailInner() {
             </button>
             {track.is_published && (
               <Link
-                href={`/songs/view/?slug=${encodeURIComponent(track.slug)}`}
+                href={`/songs/${encodeURIComponent(track.slug)}/`}
                 className="px-3.5 py-2 rounded-xl bg-emerald-600/20 text-emerald-300 text-xs font-bold inline-flex items-center gap-1.5"
               >
                 <ExternalLink className="h-3.5 w-3.5" /> View Public Song

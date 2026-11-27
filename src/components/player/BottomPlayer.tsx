@@ -129,7 +129,7 @@ export function BottomPlayer({
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5">
               <Link
-                href={`/songs/view/?slug=${encodeURIComponent(currentTrack.slug)}`}
+                href={`/songs/${encodeURIComponent(currentTrack.slug)}/`}
                 className="text-sm font-semibold truncate hover:underline text-[var(--gm-text)]"
               >
                 {currentTrack.title}

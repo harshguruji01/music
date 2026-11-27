@@ -312,7 +312,7 @@ export function AppShell({
                         </div>
                       </button>
                       <Link
-                        href={`/songs/view/?slug=${encodeURIComponent(track.slug)}`}
+                        href={`/songs/${encodeURIComponent(track.slug)}/`}
                         onClick={() => setSuggestOpen(false)}
                         className="text-[11px] text-purple-400 hover:underline px-2"
                       >

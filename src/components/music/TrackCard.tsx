@@ -117,7 +117,7 @@ export function TrackCard({
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
           <Link
-            href={`/songs/view/?slug=${encodeURIComponent(track.slug)}`}
+            href={`/songs/${encodeURIComponent(track.slug)}/`}
             className={`block text-sm font-semibold truncate hover:underline ${
               isActive ? "gm-rainbow-text" : "text-[var(--gm-text)]"
             }`}
@@ -234,7 +234,7 @@ export function TrackCard({
               )}
 
               <Link
-                href={`/songs/view/?slug=${encodeURIComponent(track.slug)}`}
+                href={`/songs/${encodeURIComponent(track.slug)}/`}
                 onClick={() => setMenuOpen(false)}
                 className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg hover:bg-white/5"
               >
@@ -245,7 +245,7 @@ export function TrackCard({
                 type="button"
                 onClick={async () => {
                   setMenuOpen(false);
-                  const url = `${window.location.origin}/songs/view/?slug=${encodeURIComponent(track.slug)}`;
+                  const url = `${window.location.origin}/songs/${encodeURIComponent(track.slug)}/`;
                   if (navigator.share) {
                     await navigator.share({ title: track.title, url }).catch(() => {});
                   } else if (navigator.clipboard) {

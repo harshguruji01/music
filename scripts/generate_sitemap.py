@@ -146,7 +146,7 @@ def build_sitemap_xml(site_url: str, sb_url: str, sb_key: str) -> tuple[str, int
         add_entry(f"{site_url}{path}", now_iso, freq, prio)
 
     dynamic_sources = [
-        ("tracks", "/songs/view/?slug=", True, "weekly", "0.8"),
+        ("tracks", "/songs/", True, "weekly", "0.8"),
         ("artists", "/artists/view/?slug=", True, "weekly", "0.7"),
         ("albums", "/albums/view/?slug=", True, "weekly", "0.7"),
         ("playlists", "/playlists/view/?slug=", True, "weekly", "0.7"),
@@ -160,7 +160,8 @@ def build_sitemap_xml(site_url: str, sb_url: str, sb_key: str) -> tuple[str, int
             if not slug:
                 continue
             encoded_slug = urllib.parse.quote(slug, safe="-_")
-            loc = f"{site_url}{prefix}{encoded_slug}"
+            suffix = "/" if prefix == "/songs/" else ""
+            loc = f"{site_url}{prefix}{encoded_slug}{suffix}"
             lastmod = normalize_lastmod(row.get("updated_at"), now_iso)
             add_entry(loc, lastmod, freq, prio)
 
