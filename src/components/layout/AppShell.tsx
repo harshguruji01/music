@@ -8,6 +8,7 @@ import {
   Clock,
   Compass,
   Disc3,
+  Download,
   Flame,
   Heart,
   Home,
@@ -205,7 +206,15 @@ export function AppShell({
           </div>
         </nav>
 
-        <div className="p-4 border-t border-[var(--gm-border)]">
+        <div className="p-4 border-t border-[var(--gm-border)] space-y-2.5">
+          <a
+            href="/downlaod/GuruMusic.apk"
+            download="GuruMusic.apk"
+            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl gm-rainbow-gradient text-white text-xs font-bold shadow-md shadow-purple-500/20 hover:opacity-95 transition-opacity"
+          >
+            <Download className="h-3.5 w-3.5" />
+            <span>Download Android App</span>
+          </a>
           <div className="gm-surface rounded-xl p-3">
             <p className="text-[11px] font-bold tracking-wider gm-rainbow-text">
               {BRAND_CONFIG.tagline}

@@ -19,6 +19,7 @@ const MANAGED_DIRS = [
   "artists",
   "auth",
   "brand",
+  "downlaod",
   "explore",
   "favorites",
   "featured",

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Guru Music</string>
+    <string name="offline_title">No Internet Connection</string>
+    <string name="offline_subtitle">Connect to the internet to stream songs from Guru Music.</string>
+    <string name="retry">Retry</string>
+</resources>
