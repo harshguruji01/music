@@ -23,6 +23,21 @@ import type { AdminActivityLog, Album, Artist, Genre, SiteSettings, Track } from
 
 export const ADMIN_SESSION_KEY = "gm_admin_session_at";
 
+export function hasPasswordAuthMethod(accessToken: string | null | undefined): boolean {
+  if (!accessToken) return false;
+  const parts = accessToken.split(".");
+  if (parts.length < 2) return false;
+  try {
+    const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    const padded = base64 + "=".repeat((4 - (base64.length % 4)) % 4);
+    const json = atob(padded);
+    const claims = JSON.parse(json) as { amr?: Array<{ method?: string }> };
+    return Array.isArray(claims.amr) && claims.amr.some((entry) => entry?.method === "password");
+  } catch {
+    return false;
+  }
+}
+
 async function detectBrowserAudioSignature(file: File): Promise<"mp3" | "m4a" | "wav" | "ogg" | null> {
   const slice = await file.slice(0, 16).arrayBuffer();
   const b = new Uint8Array(slice);
@@ -76,6 +91,14 @@ export async function verifyAdminSessionClient(): Promise<
 
   if (!user || !user.email) return { ok: false, reason: "expired" };
   if (!isEmailAllowlisted(user.email)) return { ok: false, reason: "unauthorized" };
+
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (!hasPasswordAuthMethod(session?.access_token)) {
+    await supabase.auth.signOut();
+    return { ok: false, reason: "unauthorized" };
+  }
 
   const { data: roleRow } = await supabase
     .from("user_roles")

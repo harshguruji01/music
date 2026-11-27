@@ -13,7 +13,7 @@ function AdminLoginInner() {
   const searchParams = useSearchParams();
   const reason = searchParams.get("reason");
 
-  const [email, setEmail] = useState("harshguruji01@gmail.com");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [configured, setConfigured] = useState(() => isSupabasePublicConfigured());
@@ -80,7 +80,7 @@ function AdminLoginInner() {
             </div>
             <h1 className="text-2xl font-black tracking-tight">Sign in to Guru Music CMS</h1>
             <p className="text-xs text-slate-400">
-              Verified via Supabase Auth, allowlist email, and PostgreSQL RLS role check.
+              Password-only administrator access verified via Supabase Auth, allowlist check, and PostgreSQL RLS.
             </p>
           </div>
 
@@ -135,6 +135,7 @@ function AdminLoginInner() {
                   autoComplete="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Enter administrator email"
                   className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-black/40 border border-white/10 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/60"
                 />
               </div>
@@ -169,7 +170,7 @@ function AdminLoginInner() {
           </form>
 
           <div className="pt-2 border-t border-white/10 flex items-center justify-between text-[11px] text-slate-400">
-            <span>Provision via <code>pnpm admin:provision</code></span>
+            <span>Direct credentials only (OAuth disabled)</span>
             <button
               type="button"
               onClick={() => setShowConn((v) => !v)}
