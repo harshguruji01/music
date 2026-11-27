@@ -1,6 +1,5 @@
 User-Agent: *
 Allow: /
-Disallow: /admin/
 Disallow: /studio/
 Disallow: /auth/
 Disallow: /profile/

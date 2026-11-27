@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+URL="https://music.webguruji.online/"
+PROFILE="$HOME/Library/Application Support/GuruMusic"
+
+for APP in \
+  "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
+  "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge" \
+  "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser"
+do
+  if [ -x "$APP" ]; then
+    exec "$APP" --app="$URL" --user-data-dir="$PROFILE" --no-first-run >/dev/null 2>&1 &
+    exit 0
+  fi
+done
+
+open "$URL"

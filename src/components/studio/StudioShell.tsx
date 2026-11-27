@@ -97,7 +97,7 @@ export function StudioShell({ children }: { children: React.ReactNode }) {
   );
 
   return (
-    <div className="min-h-screen flex bg-[#07070b] text-slate-100">
+    <div className="min-h-screen flex bg-[#07070b] text-slate-100 overflow-x-hidden max-w-full">
       <aside className="hidden md:flex md:w-64 shrink-0 flex-col border-r border-white/10 bg-[#0b0b12] sticky top-0 h-screen">
         {navContent}
       </aside>
@@ -141,7 +141,7 @@ export function StudioShell({ children }: { children: React.ReactNode }) {
           </Link>
         </header>
 
-        <main className="flex-1 p-4 md:p-6 lg:p-8 max-w-[1360px] w-full mx-auto">
+        <main className="flex-1 min-w-0 p-4 md:p-6 lg:p-8 max-w-[1360px] w-full mx-auto overflow-x-hidden">
           {children}
         </main>
       </div>

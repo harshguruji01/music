@@ -143,7 +143,7 @@ export function AppShell({
   };
 
   return (
-    <div className="min-h-screen flex bg-[var(--gm-bg)] text-[var(--gm-text)]">
+    <div className="min-h-screen flex bg-[var(--gm-bg)] text-[var(--gm-text)] overflow-x-hidden max-w-full">
       {/* Desktop Left Sidebar */}
       <aside className="hidden md:flex md:w-64 lg:w-[272px] shrink-0 flex-col border-r border-[var(--gm-border)] bg-[var(--gm-bg-elevated)] sticky top-0 h-screen">
         <div className="px-5 py-5 border-b border-[var(--gm-border)]">
@@ -207,37 +207,13 @@ export function AppShell({
         </nav>
 
         <div className="p-4 border-t border-[var(--gm-border)] space-y-2.5">
-          <div className="gm-surface rounded-xl p-2.5 space-y-1.5">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--gm-text-muted)] px-1">
-              Download Guru Music App
-            </p>
-            <a
-              href="/downlaod/GuruMusic.apk"
-              download="GuruMusic.apk"
-              className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg gm-rainbow-gradient text-white text-xs font-bold shadow-md shadow-purple-500/20 hover:opacity-95 transition-opacity"
-            >
-              <Download className="h-3.5 w-3.5" />
-              <span>Android APK (2.4 MB)</span>
-            </a>
-            <div className="grid grid-cols-2 gap-1.5">
-              <a
-                href="/downlaod/GuruMusic-Windows.exe"
-                download="GuruMusic-Windows.exe"
-                className="flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-[11px] font-semibold transition-colors"
-              >
-                <Download className="h-3 w-3 text-blue-400" />
-                <span>Windows</span>
-              </a>
-              <a
-                href="/downlaod/GuruMusic-Linux.tar.gz"
-                download="GuruMusic-Linux.tar.gz"
-                className="flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-[11px] font-semibold transition-colors"
-              >
-                <Download className="h-3 w-3 text-emerald-400" />
-                <span>Linux</span>
-              </a>
-            </div>
-          </div>
+          <Link
+            href="/downlaods/"
+            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl gm-rainbow-gradient text-white text-xs font-bold shadow-md shadow-purple-500/20 hover:opacity-95 transition-opacity"
+          >
+            <Download className="h-3.5 w-3.5" />
+            <span>Download Apps</span>
+          </Link>
           <div className="gm-surface rounded-xl p-3">
             <p className="text-[11px] font-bold tracking-wider gm-rainbow-text">
               {BRAND_CONFIG.tagline}
@@ -348,13 +324,22 @@ export function AppShell({
               )}
             </div>
 
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
               {!isOnline && (
-                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-rose-500/15 text-rose-400 text-xs font-medium">
+                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-rose-500/15 text-rose-400 text-xs font-medium">
                   <WifiOff className="h-3.5 w-3.5" />
                   <span className="hidden sm:inline">Offline</span>
                 </span>
               )}
+              <Link
+                href="/downlaods/"
+                aria-label="Download Guru Music Apps"
+                title="Download Apps (Android, Windows, Linux, macOS)"
+                className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl gm-surface hover:bg-[var(--gm-surface-hover)] text-xs font-semibold text-purple-300"
+              >
+                <Download className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Download</span>
+              </Link>
               <button
                 type="button"
                 onClick={toggleTheme}
@@ -418,7 +403,7 @@ export function AppShell({
         )}
 
         <main
-          className={`flex-1 max-w-[1440px] w-full mx-auto px-4 md:px-6 py-6 ${
+          className={`flex-1 min-w-0 max-w-[1440px] w-full mx-auto px-3 sm:px-4 md:px-6 py-6 overflow-x-hidden ${
             currentTrack ? "pb-36 md:pb-28" : "pb-20 md:pb-12"
           }`}
         >

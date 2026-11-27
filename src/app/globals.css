@@ -27,6 +27,8 @@
     scroll-behavior: smooth;
     background-color: var(--gm-bg);
     color: var(--gm-text);
+    max-width: 100%;
+    overflow-x: hidden;
   }
 
   body {
