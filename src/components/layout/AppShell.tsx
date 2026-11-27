@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import {
+  Clock,
   Compass,
   Disc3,
   Flame,
@@ -13,6 +14,7 @@ import {
   Library,
   ListMusic,
   Menu,
+  Mic2,
   Moon,
   Music,
   Search,
@@ -29,12 +31,14 @@ import { FullScreenPlayer } from "@/components/player/FullScreenPlayer";
 import { QueuePanel } from "@/components/player/QueuePanel";
 import { useTheme } from "@/context/ThemeContext";
 import { usePlayer } from "@/context/PlayerContext";
+import { useAuth } from "@/context/AuthContext";
 import { BRAND_CONFIG } from "@/lib/supabase/config";
 import { getSiteSettingsClient, searchPublishedCatalogClient } from "@/lib/public-api";
 import type { SiteSettings, Track } from "@/types/music";
 
 const PRIMARY_NAV = [
   { href: "/", label: "Home", icon: Home },
+  { href: "/explore", label: "Explore", icon: Compass },
   { href: "/search", label: "Search", icon: Search },
   { href: "/songs", label: "All Songs", icon: Music },
   { href: "/trending", label: "Trending", icon: TrendingUp },
@@ -47,7 +51,11 @@ const DISCOVER_NAV = [
   { href: "/albums", label: "Albums", icon: Disc3 },
   { href: "/playlists", label: "Playlists", icon: ListMusic },
   { href: "/genres", label: "Genres", icon: Compass },
-  { href: "/library", label: "Your Library", icon: Heart },
+  { href: "/favorites", label: "Favorites", icon: Heart },
+  { href: "/library?tab=recent", label: "Recently Played", icon: Clock },
+  { href: "/library", label: "Your Library", icon: Library },
+  { href: "/studio", label: "Creator Studio", icon: Mic2 },
+  { href: "/auth", label: "Account", icon: User },
 ];
 
 export function AppShell({
@@ -59,6 +67,19 @@ export function AppShell({
   const router = useRouter();
   const { theme, toggleTheme } = useTheme();
   const { currentTrack, isOnline, playTrack } = usePlayer();
+  const { user, musicUser, creator, isGoogleAuthenticated } = useAuth();
+
+  const discoverNavItems = DISCOVER_NAV.filter(
+    (item) => item.href !== "/studio" || Boolean(user && isGoogleAuthenticated && creator)
+  ).map((item) =>
+    item.href === "/auth"
+      ? {
+          ...item,
+          href: user ? "/profile" : "/auth",
+          label: user ? "Account & Settings" : "Sign In",
+        }
+      : item
+  );
 
   const [siteSettings, setSiteSettings] = useState<SiteSettings | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -67,7 +88,7 @@ export function AppShell({
   const [suggestOpen, setSuggestOpen] = useState(false);
   const searchBoxRef = useRef<HTMLDivElement>(null);
 
-  const isAdminRoute = pathname.startsWith("/admin");
+  const isAdminRoute = pathname.startsWith("/admin") || pathname.startsWith("/studio");
 
   useEffect(() => {
     if (isAdminRoute) return;
@@ -162,7 +183,7 @@ export function AppShell({
               Browse & Library
             </p>
             <div className="space-y-1">
-              {DISCOVER_NAV.map((item) => {
+              {discoverNavItems.map((item) => {
                 const Icon = item.icon;
                 const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
                 return (
@@ -222,6 +243,9 @@ export function AppShell({
                   type="search"
                   value={searchQuery}
                   onFocus={() => setSuggestOpen(true)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Escape") setSuggestOpen(false);
+                  }}
                   onChange={(e) => {
                     const val = e.target.value;
                     setSearchQuery(val);
@@ -230,8 +254,21 @@ export function AppShell({
                   }}
                   placeholder="Search songs, artists, albums, genres..."
                   aria-label="Search Guru Music"
-                  className="w-full pl-10 pr-4 py-2 rounded-full bg-[var(--gm-surface)] border border-[var(--gm-border)] text-sm text-[var(--gm-text)] placeholder:text-[var(--gm-text-muted)] focus:outline-none focus:ring-2 focus:ring-purple-500/60"
+                  className="w-full pl-10 pr-9 py-2 rounded-full bg-[var(--gm-surface)] border border-[var(--gm-border)] text-sm text-[var(--gm-text)] placeholder:text-[var(--gm-text-muted)] focus:outline-none focus:ring-2 focus:ring-purple-500/60"
                 />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearchQuery("");
+                      setSuggestions([]);
+                    }}
+                    aria-label="Clear search"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--gm-text-muted)] hover:text-[var(--gm-text)]"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
               </form>
 
               {suggestOpen && suggestions.length > 0 && (
@@ -306,6 +343,38 @@ export function AppShell({
                 <Library className="h-3.5 w-3.5 text-emerald-400" />
                 Library
               </Link>
+              {user ? (
+                <Link
+                  href="/profile/"
+                  aria-label="Your profile"
+                  className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-xl gm-surface hover:bg-[var(--gm-surface-hover)] text-xs font-semibold"
+                >
+                  {musicUser?.avatar_url ? (
+                    <Image
+                      src={musicUser.avatar_url}
+                      alt={musicUser.display_name || "Profile"}
+                      width={24}
+                      height={24}
+                      className="rounded-lg object-cover"
+                    />
+                  ) : (
+                    <span className="h-6 w-6 rounded-lg gm-rainbow-gradient flex items-center justify-center text-[11px] font-black text-white">
+                      {(musicUser?.display_name || user.email || "G").slice(0, 1).toUpperCase()}
+                    </span>
+                  )}
+                  <span className="hidden lg:inline max-w-[110px] truncate">
+                    {musicUser?.display_name || user.email?.split("@")[0] || "Profile"}
+                  </span>
+                </Link>
+              ) : (
+                <Link
+                  href="/auth/"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl gm-rainbow-gradient text-white text-xs font-bold"
+                >
+                  <User className="h-3.5 w-3.5" />
+                  <span>Sign In</span>
+                </Link>
+              )}
             </div>
           </div>
         </header>
@@ -370,7 +439,7 @@ export function AppShell({
               </button>
             </div>
             <nav className="flex-1 overflow-y-auto py-4 space-y-1">
-              {[...PRIMARY_NAV, ...DISCOVER_NAV].map((item) => {
+              {[...PRIMARY_NAV, ...discoverNavItems].map((item) => {
                 const Icon = item.icon;
                 return (
                   <Link
@@ -400,10 +469,10 @@ export function AppShell({
       >
         {[
           { href: "/", label: "Home", icon: Home },
+          { href: "/explore", label: "Explore", icon: Compass },
           { href: "/search", label: "Search", icon: Search },
-          { href: "/songs", label: "Songs", icon: Music },
-          { href: "/playlists", label: "Playlists", icon: ListMusic },
           { href: "/library", label: "Library", icon: Library },
+          { href: user ? "/profile" : "/auth", label: "Profile", icon: User },
         ].map((item) => {
           const Icon = item.icon;
           const active = pathname === item.href;

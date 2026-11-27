@@ -3,6 +3,7 @@ import { Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { ToastProvider } from "@/context/ToastContext";
+import { AuthProvider } from "@/context/AuthContext";
 import { PlayerProvider } from "@/context/PlayerContext";
 import { AppShell } from "@/components/layout/AppShell";
 import { BRAND_CONFIG } from "@/lib/supabase/config";
@@ -72,12 +73,21 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${jakarta.variable} dark`} suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('gm_theme');var r=t==='light'?'light':t==='dark'?'dark':(window.matchMedia&&window.matchMedia('(prefers-color-scheme: light)').matches?'light':'dark');document.documentElement.classList.toggle('light',r==='light');document.documentElement.classList.toggle('dark',r==='dark');}catch(e){}})();`,
+          }}
+        />
+      </head>
       <body className="min-h-screen antialiased selection:bg-purple-500/30">
         <ThemeProvider>
           <ToastProvider>
-            <PlayerProvider>
-              <AppShell>{children}</AppShell>
-            </PlayerProvider>
+            <AuthProvider>
+              <PlayerProvider>
+                <AppShell>{children}</AppShell>
+              </PlayerProvider>
+            </AuthProvider>
           </ToastProvider>
         </ThemeProvider>
       </body>

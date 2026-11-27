@@ -11,7 +11,12 @@ import React, {
 } from "react";
 import type { LocalPlaylist, Track } from "@/types/music";
 import { BRAND_CONFIG } from "@/lib/supabase/config";
-import { recordTrackPlayClient, resolvePublishedTracksByIdsClient } from "@/lib/public-api";
+import {
+  getCloudFavoritesClient,
+  recordTrackPlayClient,
+  resolvePublishedTracksByIdsClient,
+  syncCloudFavoriteClient,
+} from "@/lib/public-api";
 import { useToast } from "./ToastContext";
 
 export type RepeatMode = "off" | "all" | "one";
@@ -56,9 +61,13 @@ interface PlayerContextValue {
   setQueueOpen: (open: boolean) => void;
   toggleFavorite: (trackId: string) => void;
   createLocalPlaylist: (title: string, description?: string) => LocalPlaylist;
+  renameLocalPlaylist: (playlistId: string, newTitle: string) => void;
+  updateLocalPlaylist: (playlistId: string, updates: { title?: string; description?: string }) => void;
   addTrackToLocalPlaylist: (playlistId: string, trackId: string) => void;
   removeTrackFromLocalPlaylist: (playlistId: string, trackId: string) => void;
   deleteLocalPlaylist: (playlistId: string) => void;
+  removeFromRecent: (trackId: string) => void;
+  clearRecentHistory: () => void;
 }
 
 const PlayerContext = createContext<PlayerContextValue | null>(null);
@@ -533,12 +542,30 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         } catch {
           // ignore
         }
+        void syncCloudFavoriteClient(trackId, !exists);
         showToast(exists ? "Removed from Favorites" : "Saved to Favorites", "success");
         return next;
       });
     },
     [showToast]
   );
+
+  useEffect(() => {
+    getCloudFavoritesClient()
+      .then((cloudIds) => {
+        if (cloudIds.length === 0) return;
+        setFavorites((prev) => {
+          const merged = Array.from(new Set([...cloudIds, ...prev]));
+          try {
+            localStorage.setItem(STORAGE_FAVS_KEY, JSON.stringify(merged));
+          } catch {
+            // ignore
+          }
+          return merged;
+        });
+      })
+      .catch(() => {});
+  }, []);
 
   const createLocalPlaylist = useCallback(
     (title: string, description = "") => {
@@ -599,6 +626,79 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       return next;
     });
   }, []);
+
+  const renameLocalPlaylist = useCallback(
+    (playlistId: string, newTitle: string) => {
+      const cleaned = newTitle.trim();
+      if (!cleaned) return;
+      setLocalPlaylists((prev) => {
+        const next = prev.map((p) =>
+          p.id === playlistId ? { ...p, title: cleaned } : p
+        );
+        try {
+          localStorage.setItem(STORAGE_LOCAL_PLAYLISTS_KEY, JSON.stringify(next));
+        } catch {
+          // ignore
+        }
+        return next;
+      });
+      showToast("Playlist renamed", "success");
+    },
+    [showToast]
+  );
+
+  const updateLocalPlaylist = useCallback(
+    (playlistId: string, updates: { title?: string; description?: string }) => {
+      setLocalPlaylists((prev) => {
+        const next = prev.map((p) =>
+          p.id === playlistId
+            ? {
+                ...p,
+                title: updates.title?.trim() || p.title,
+                description:
+                  updates.description !== undefined ? updates.description.trim() : p.description,
+              }
+            : p
+        );
+        try {
+          localStorage.setItem(STORAGE_LOCAL_PLAYLISTS_KEY, JSON.stringify(next));
+        } catch {
+          // ignore
+        }
+        return next;
+      });
+      showToast("Playlist updated", "success");
+    },
+    [showToast]
+  );
+
+  const removeFromRecent = useCallback(
+    (trackId: string) => {
+      setRecentIds((prev) => {
+        const next = prev.filter((id) => id !== trackId);
+        try {
+          localStorage.setItem(STORAGE_RECENT_KEY, JSON.stringify(next));
+        } catch {
+          // ignore
+        }
+        return next;
+      });
+      setRecentTracks((prev) => prev.filter((t) => t.id !== trackId));
+      showToast("Removed from recently played", "info");
+    },
+    [showToast]
+  );
+
+  const clearRecentHistory = useCallback(() => {
+    setRecentIds([]);
+    setRecentTracks([]);
+    try {
+      localStorage.removeItem(STORAGE_RECENT_KEY);
+    } catch {
+      // ignore
+    }
+    showToast("Listening history cleared", "info");
+  }, [showToast]);
 
   const deleteLocalPlaylist = useCallback(
     (playlistId: string) => {
@@ -724,9 +824,13 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       setQueueOpen,
       toggleFavorite,
       createLocalPlaylist,
+      renameLocalPlaylist,
+      updateLocalPlaylist,
       addTrackToLocalPlaylist,
       removeTrackFromLocalPlaylist,
       deleteLocalPlaylist,
+      removeFromRecent,
+      clearRecentHistory,
     }),
     [
       currentTrack,
@@ -766,9 +870,13 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       clearQueue,
       toggleFavorite,
       createLocalPlaylist,
+      renameLocalPlaylist,
+      updateLocalPlaylist,
       addTrackToLocalPlaylist,
       removeTrackFromLocalPlaylist,
       deleteLocalPlaylist,
+      removeFromRecent,
+      clearRecentHistory,
     ]
   );
 

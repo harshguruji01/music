@@ -3,6 +3,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { hasPasswordAuthMethod } from "../admin-api";
 import { getSupabaseConfigValues, isSupabasePublicConfigured } from "../supabase/config";
+import { AppError, normalizeErrorMessage } from "../errors";
+import { validateCreatorPasswordStrength, validateCreatorUsername } from "../music-auth";
 
 function makeJwt(payload: Record<string, unknown>): string {
   const header = Buffer.from(JSON.stringify({ alg: "HS256", typ: "JWT" })).toString("base64url");
@@ -72,6 +74,32 @@ describe("Static-export Admin protection & secret hygiene", () => {
     expect(cfg.url).toBe("https://wumdbpyhpblvgjttsbpv.supabase.co");
     expect(cfg.anonKey.length).toBeGreaterThan(15);
     expect(isSupabasePublicConfigured()).toBe(true);
+  });
+
+  it("normalizes AppError and unknown errors cleanly", () => {
+    const err = new AppError("Upload denied", "FORBIDDEN", 403);
+    expect(normalizeErrorMessage(err)).toBe("Upload denied");
+    expect(normalizeErrorMessage(null, "Fallback")).toBe("Fallback");
+  });
+
+  it("validates creator username format and password strength", () => {
+    expect(validateCreatorUsername("harsh_music")).toBeNull();
+    expect(validateCreatorUsername("ab")).not.toBeNull();
+    expect(validateCreatorUsername("Bad Name!")).not.toBeNull();
+
+    expect(validateCreatorPasswordStrength("StrongPass123")).toBeNull();
+    expect(validateCreatorPasswordStrength("short1A")).not.toBeNull();
+    expect(validateCreatorPasswordStrength("nouppercase123")).not.toBeNull();
+    expect(validateCreatorPasswordStrength("NoNumbersHere")).not.toBeNull();
+  });
+
+  it("never exposes creator password hashes or localStorage password storage in client auth code", () => {
+    const musicAuth = fs.readFileSync(
+      path.resolve(process.cwd(), "src/lib/music-auth.ts"),
+      "utf8"
+    );
+    expect(musicAuth).not.toContain("localStorage");
+    expect(musicAuth).not.toContain("password_hash");
   });
 
   it("no file inside src/ ever reads process.env.SUPABASE_SERVICE_ROLE_KEY", () => {

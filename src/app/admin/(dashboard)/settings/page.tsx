@@ -100,6 +100,56 @@ export default function AdminSettingsPage() {
           Display Maintenance Notice Banner on Public Website
         </label>
 
+        <div className="pt-4 border-t border-white/10 space-y-4">
+          <h2 className="text-sm font-bold text-slate-200">Creator Studio & Upload Controls</h2>
+
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-slate-300">Max Audio Upload Size (MB)</label>
+              <input
+                type="number"
+                min={5}
+                max={500}
+                value={form.max_audio_size_mb ?? 100}
+                onChange={(e) => setForm((f) => ({ ...f, max_audio_size_mb: Number(e.target.value) || 100 }))}
+                className="w-full px-3.5 py-2.5 rounded-xl bg-black/40 border border-white/10 text-sm"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-slate-300">Max Cover Size (MB)</label>
+              <input
+                type="number"
+                min={1}
+                max={50}
+                value={form.max_image_size_mb ?? 10}
+                onChange={(e) => setForm((f) => ({ ...f, max_image_size_mb: Number(e.target.value) || 10 }))}
+                className="w-full px-3.5 py-2.5 rounded-xl bg-black/40 border border-white/10 text-sm"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 text-xs cursor-pointer">
+              <input
+                type="checkbox"
+                checked={form.creator_uploads_enabled !== false}
+                onChange={(e) => setForm((f) => ({ ...f, creator_uploads_enabled: e.target.checked }))}
+                className="accent-purple-500"
+              />
+              Enable Creator Studio Audio Uploads
+            </label>
+            <label className="flex items-center gap-2 text-xs cursor-pointer">
+              <input
+                type="checkbox"
+                checked={Boolean(form.require_creator_verification)}
+                onChange={(e) => setForm((f) => ({ ...f, require_creator_verification: e.target.checked }))}
+                className="accent-emerald-500"
+              />
+              Require Verified Creator Status Before Uploading
+            </label>
+          </div>
+        </div>
+
         <div className="flex items-center gap-3 pt-2">
           <button type="submit" disabled={saving} className="px-6 py-2.5 rounded-xl gm-rainbow-gradient text-white text-xs font-bold inline-flex items-center gap-1.5">
             <Save className="h-4 w-4" />

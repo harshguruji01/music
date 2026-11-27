@@ -19,7 +19,20 @@ import {
   slugify,
   uniqueSlug,
 } from "./security";
-import type { AdminActivityLog, Album, Artist, Genre, SiteSettings, Track } from "@/types/music";
+import type {
+  AdminActivityLog,
+  Album,
+  Artist,
+  CreatorCredential,
+  Genre,
+  ModerationLog,
+  MusicLoginLog,
+  MusicUser,
+  SiteSettings,
+  SongStatus,
+  SongSubmission,
+  Track,
+} from "@/types/music";
 
 export const ADMIN_SESSION_KEY = "gm_admin_session_at";
 
@@ -764,6 +777,9 @@ export async function fetchAdminLogsClient(status?: string, action?: string): Pr
 const STORAGE_BUCKETS = [
   { id: "published-audio", label: "Published Audio", visibility: "Public" },
   { id: "draft-audio", label: "Draft Audio", visibility: "Private (Admin Only)" },
+  { id: "artist-uploads", label: "Creator Uploads", visibility: "Private (Owner + Admin)" },
+  { id: "pending-submissions", label: "Pending Submissions", visibility: "Private (Owner + Admin)" },
+  { id: "creator-verification-docs", label: "Verification Docs", visibility: "Private (Owner + Admin)" },
   { id: "song-artwork", label: "Song Artwork", visibility: "Public" },
   { id: "album-covers", label: "Album Covers", visibility: "Public" },
   { id: "artist-images", label: "Artist Images", visibility: "Public" },
@@ -827,4 +843,144 @@ export async function cleanupOrphanStorageClient(): Promise<number> {
     details: { removedOrphanFiles: removed },
   });
   return removed;
+}
+
+// ============================================================================
+// Super Admin Console: Moderation Queue, Creators, Users & Audit Logs
+// ============================================================================
+
+export async function fetchAdminSubmissionsClient(statusFilter?: string): Promise<SongSubmission[]> {
+  const supabase = getSupabaseBrowserClient()!;
+  let query = supabase
+    .from("song_submissions")
+    .select(
+      "*, track:tracks(*, artist:artists(id, name, slug), genre:genres(id, name, slug, color_accent)), creator:creators(id, username, stage_name, is_verified)"
+    )
+    .order("submitted_at", { ascending: false })
+    .limit(100);
+
+  if (statusFilter && statusFilter !== "all") {
+    query = query.eq("status", statusFilter);
+  }
+  const { data } = await query;
+  return (data || []) as unknown as SongSubmission[];
+}
+
+export async function moderateSongViaGatewayClient(params: {
+  trackId: string;
+  newStatus: Exclude<SongStatus, "PENDING_REVIEW">;
+  reason?: string;
+}): Promise<Track> {
+  const supabase = getSupabaseBrowserClient()!;
+  const { data, error } = await supabase.functions.invoke("music-gateway", {
+    body: {
+      action: "moderate-song",
+      trackId: params.trackId,
+      newStatus: params.newStatus,
+      reason: params.reason || null,
+    },
+  });
+  if (error) throw new Error(error.message || "Moderation gateway failed.");
+  if (data && typeof data === "object" && "error" in data && data.error) {
+    throw new Error(String(data.error));
+  }
+  return (data as { track: Track }).track;
+}
+
+export async function fetchAdminModerationLogsClient(): Promise<ModerationLog[]> {
+  const supabase = getSupabaseBrowserClient()!;
+  const { data } = await supabase
+    .from("moderation_logs")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(100);
+  return (data || []) as ModerationLog[];
+}
+
+export async function fetchAdminCreatorVerificationsClient(): Promise<CreatorCredential[]> {
+  const supabase = getSupabaseBrowserClient()!;
+  const { data } = await supabase
+    .from("creator_credentials")
+    .select("*, creator:creators(*)")
+    .order("created_at", { ascending: false })
+    .limit(100);
+  return (data || []) as unknown as CreatorCredential[];
+}
+
+export async function reviewCreatorVerificationClient(params: {
+  credentialId: string;
+  creatorId: string;
+  decision: "APPROVED" | "REJECTED" | "CHANGES_REQUESTED";
+  notes?: string;
+}) {
+  const supabase = getSupabaseBrowserClient()!;
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const nowIso = new Date().toISOString();
+
+  const { error: credErr } = await supabase
+    .from("creator_credentials")
+    .update({
+      status: params.decision,
+      reviewer_id: user?.id || null,
+      reviewer_notes: params.notes || null,
+      reviewed_at: nowIso,
+    })
+    .eq("id", params.credentialId);
+  if (credErr) throw new Error(credErr.message);
+
+  const creatorStatus =
+    params.decision === "APPROVED"
+      ? "verified"
+      : params.decision === "REJECTED"
+        ? "rejected"
+        : "pending";
+
+  const { error: crErr } = await supabase
+    .from("creators")
+    .update({
+      verification_status: creatorStatus,
+      is_verified: params.decision === "APPROVED",
+      verified_at: params.decision === "APPROVED" ? nowIso : null,
+      verified_by: params.decision === "APPROVED" ? user?.id || null : null,
+    })
+    .eq("id", params.creatorId);
+  if (crErr) throw new Error(crErr.message);
+
+  await logAdminActionClient({
+    action: `admin.creator.verification.${params.decision.toLowerCase()}`,
+    resourceType: "creator",
+    resourceId: params.creatorId,
+    details: { credentialId: params.credentialId },
+  });
+}
+
+export async function fetchAdminMusicUsersClient(): Promise<{
+  users: MusicUser[];
+  loginLogs: MusicLoginLog[];
+}> {
+  const supabase = getSupabaseBrowserClient()!;
+  const [{ data: users }, { data: loginLogs }] = await Promise.all([
+    supabase.from("music_users").select("*").order("created_at", { ascending: false }).limit(100),
+    supabase.from("music_login_logs").select("*").order("created_at", { ascending: false }).limit(50),
+  ]);
+  return {
+    users: (users || []) as MusicUser[],
+    loginLogs: (loginLogs || []) as MusicLoginLog[],
+  };
+}
+
+export async function toggleAdminMusicUserActiveClient(userId: string, nextActive: boolean) {
+  const supabase = getSupabaseBrowserClient()!;
+  const { error } = await supabase
+    .from("music_users")
+    .update({ is_active: nextActive })
+    .eq("id", userId);
+  if (error) throw new Error(error.message);
+  await logAdminActionClient({
+    action: nextActive ? "admin.user.activate" : "admin.user.suspend",
+    resourceType: "music_users",
+    resourceId: userId,
+  });
 }

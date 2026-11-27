@@ -1,9 +1,9 @@
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Calendar, Clock, Disc3, Download, Heart, ListPlus, Music2, Pause, Play, User } from "lucide-react";
+import { Calendar, Clock, Disc3, Download, Heart, ListPlus, Music2, Pause, Play, Share2, User } from "lucide-react";
 import type { Track } from "@/types/music";
 import { usePlayer } from "@/context/PlayerContext";
 import { useToast } from "@/context/ToastContext";
@@ -21,9 +21,15 @@ export function SongDetailClient({
   related: Track[];
   downloadPolicy?: "track_level" | "disabled";
 }) {
-  const { currentTrack, isPlaying, favorites, playTrack, togglePlayPause, addToQueue, toggleFavorite } =
+  const { currentTrack, isPlaying, favorites, playTrack, playNext, togglePlayPause, addToQueue, toggleFavorite } =
     usePlayer();
   const { showToast } = useToast();
+
+  useEffect(() => {
+    if (typeof document !== "undefined") {
+      document.title = `${track.title} — ${track.artist?.name || BRAND_CONFIG.owner} | ${BRAND_CONFIG.name}`;
+    }
+  }, [track]);
 
   const isActive = currentTrack?.id === track.id;
   const isFav = favorites.includes(track.id);
@@ -135,6 +141,15 @@ export function SongDetailClient({
 
               <button
                 type="button"
+                onClick={() => playNext(track)}
+                className="px-4 py-3 rounded-full gm-surface hover:bg-[var(--gm-surface-hover)] text-sm font-semibold inline-flex items-center gap-2"
+              >
+                <Play className="h-4 w-4 text-blue-400" />
+                Play Next
+              </button>
+
+              <button
+                type="button"
                 onClick={() => addToQueue(track)}
                 className="px-4 py-3 rounded-full gm-surface hover:bg-[var(--gm-surface-hover)] text-sm font-semibold inline-flex items-center gap-2"
               >
@@ -151,6 +166,23 @@ export function SongDetailClient({
               >
                 <Heart className={`h-4 w-4 ${isFav ? "fill-current" : ""}`} />
                 {isFav ? "Favorited" : "Favorite"}
+              </button>
+
+              <button
+                type="button"
+                onClick={async () => {
+                  const url = typeof window !== "undefined" ? window.location.href : "";
+                  if (navigator.share) {
+                    await navigator.share({ title: track.title, url }).catch(() => {});
+                  } else if (navigator.clipboard && url) {
+                    await navigator.clipboard.writeText(url);
+                    showToast("Song link copied to clipboard!", "success");
+                  }
+                }}
+                className="px-4 py-3 rounded-full gm-surface hover:bg-[var(--gm-surface-hover)] text-sm font-semibold inline-flex items-center gap-2"
+              >
+                <Share2 className="h-4 w-4" />
+                Share
               </button>
 
               {canDownload && (

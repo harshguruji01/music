@@ -11,6 +11,7 @@ import {
   ListMusic,
   Loader2,
   Maximize2,
+  Mic2,
   Pause,
   Play,
   Repeat,
@@ -306,6 +307,16 @@ export function BottomPlayer({
               <Download className="h-4 w-4" />
             </button>
           )}
+
+          <button
+            type="button"
+            onClick={() => setFullScreenOpen(true)}
+            aria-label="View lyrics and expanded player"
+            className="p-2 rounded-lg text-[var(--gm-text-muted)] hover:text-purple-300 hover:bg-white/5 transition-colors"
+            title="Lyrics & Full Player"
+          >
+            <Mic2 className="h-4 w-4" />
+          </button>
 
           <button
             type="button"

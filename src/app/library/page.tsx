@@ -1,27 +1,43 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
-import { Clock, Heart, ListMusic, Play, Plus, Shuffle, Trash2 } from "lucide-react";
+import React, { Suspense, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { Check, Clock, Edit3, Heart, ListMusic, Play, Plus, Shuffle, Trash2, X } from "lucide-react";
 import { usePlayer } from "@/context/PlayerContext";
 import { resolvePublishedTracksByIdsClient } from "@/lib/public-api";
 import type { Track } from "@/types/music";
 import { TrackCard } from "@/components/music/TrackCard";
-import { EmptyLibraryState, TrackRow } from "@/components/music/CollectionCards";
+import { CardGridSkeleton, EmptyLibraryState, TrackRow } from "@/components/music/CollectionCards";
 
-export default function LibraryPage() {
+function LibraryPageInner() {
+  const searchParams = useSearchParams();
   const {
     favorites,
     recentTracks,
     localPlaylists,
     playQueue,
     createLocalPlaylist,
+    updateLocalPlaylist,
     removeTrackFromLocalPlaylist,
     deleteLocalPlaylist,
+    removeFromRecent,
+    clearRecentHistory,
   } = usePlayer();
+
+  const paramTab = searchParams.get("tab");
+  const initialTab =
+    paramTab === "recent" || paramTab === "playlists" || paramTab === "favorites"
+      ? paramTab
+      : "favorites";
 
   const [resolvedMap, setResolvedMap] = useState<Map<string, Track>>(new Map());
   const [newPlaylistTitle, setNewPlaylistTitle] = useState("");
-  const [activeTab, setActiveTab] = useState<"favorites" | "recent" | "playlists">("favorites");
+  const [selectedTab, setSelectedTab] = useState<"favorites" | "recent" | "playlists" | null>(null);
+  const activeTab = selectedTab ?? initialTab;
+  const setActiveTab = setSelectedTab;
+  const [editingPlaylistId, setEditingPlaylistId] = useState<string | null>(null);
+  const [editingTitle, setEditingTitle] = useState("");
+  const [editingDescription, setEditingDescription] = useState("");
 
   useEffect(() => {
     const allIds = Array.from(
@@ -59,13 +75,25 @@ export default function LibraryPage() {
     setNewPlaylistTitle("");
   };
 
+  const handleSaveRename = (playlistId: string) => {
+    if (editingTitle.trim()) {
+      updateLocalPlaylist(playlistId, {
+        title: editingTitle.trim(),
+        description: editingDescription,
+      });
+    }
+    setEditingPlaylistId(null);
+    setEditingTitle("");
+    setEditingDescription("");
+  };
+
   return (
     <div className="space-y-8">
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-[var(--gm-border)] pb-5">
         <div>
           <h1 className="text-3xl font-black tracking-tight">Your Library</h1>
           <p className="text-sm text-[var(--gm-text-muted)] mt-1">
-            Favorites, recently played sessions, and personal playlists — no account required.
+            Favorites, recently played sessions, and personal playlists.
           </p>
         </div>
 
@@ -137,10 +165,34 @@ export default function LibraryPage() {
             subtitle="Start playing any song on Guru Music and your listening history will appear here."
           />
         ) : (
-          <div className="gm-surface rounded-2xl p-2 divide-y divide-[var(--gm-border)]">
-            {recentTracks.map((track, idx) => (
-              <TrackRow key={track.id} track={track} index={idx} queue={recentTracks} />
-            ))}
+          <div className="space-y-3">
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={clearRecentHistory}
+                className="px-3.5 py-1.5 rounded-xl gm-surface hover:bg-rose-500/15 text-xs font-semibold text-rose-400 inline-flex items-center gap-1.5"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                Clear History
+              </button>
+            </div>
+            <div className="gm-surface rounded-2xl p-2 divide-y divide-[var(--gm-border)]">
+              {recentTracks.map((track, idx) => (
+                <div key={track.id} className="flex items-center gap-2">
+                  <div className="flex-1 min-w-0">
+                    <TrackRow track={track} index={idx} queue={recentTracks} />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removeFromRecent(track.id)}
+                    aria-label={`Remove ${track.title} from history`}
+                    className="p-2 text-[var(--gm-text-muted)] hover:text-rose-400"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
         )
       )}
@@ -174,12 +226,56 @@ export default function LibraryPage() {
                 const tracks = pl.trackIds
                   .map((id) => resolvedMap.get(id))
                   .filter((t): t is Track => Boolean(t));
+                const isEditing = editingPlaylistId === pl.id;
                 return (
                   <div key={pl.id} className="gm-surface rounded-2xl p-5 space-y-4">
                     <div className="flex items-center justify-between gap-4">
-                      <div>
-                        <h3 className="text-lg font-bold">{pl.title}</h3>
-                        <p className="text-xs text-[var(--gm-text-muted)]">{tracks.length} tracks</p>
+                      <div className="min-w-0 flex-1">
+                        {isEditing ? (
+                          <div className="space-y-2 max-w-md">
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="text"
+                                value={editingTitle}
+                                onChange={(e) => setEditingTitle(e.target.value)}
+                                placeholder="Playlist title"
+                                className="flex-1 px-3 py-1.5 rounded-lg bg-black/40 border border-white/15 text-sm"
+                                autoFocus
+                              />
+                              <button
+                                type="button"
+                                onClick={() => handleSaveRename(pl.id)}
+                                className="p-1.5 rounded-lg bg-emerald-500/20 text-emerald-300"
+                                aria-label="Save playlist details"
+                              >
+                                <Check className="h-4 w-4" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setEditingPlaylistId(null)}
+                                className="p-1.5 rounded-lg bg-white/5 text-slate-300"
+                                aria-label="Cancel edit"
+                              >
+                                <X className="h-4 w-4" />
+                              </button>
+                            </div>
+                            <input
+                              type="text"
+                              value={editingDescription}
+                              onChange={(e) => setEditingDescription(e.target.value)}
+                              placeholder="Optional description..."
+                              className="w-full px-3 py-1.5 rounded-lg bg-black/40 border border-white/15 text-xs"
+                            />
+                          </div>
+                        ) : (
+                          <>
+                            <h3 className="text-lg font-bold truncate">{pl.title}</h3>
+                            {pl.description && (
+                              <p className="text-xs text-[var(--gm-text-muted)] truncate">{pl.description}</p>
+                            )}
+                            <p className="text-xs text-[var(--gm-text-muted)]">{tracks.length} tracks</p>
+                          </>
+                        )}
                       </div>
                       <div className="flex items-center gap-2">
                         {tracks.length > 0 && (
@@ -191,6 +287,18 @@ export default function LibraryPage() {
                             <Play className="h-3.5 w-3.5 fill-current" /> Play
                           </button>
                         )}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingPlaylistId(pl.id);
+                            setEditingTitle(pl.title);
+                            setEditingDescription(pl.description || "");
+                          }}
+                          className="p-2 rounded-lg text-[var(--gm-text-muted)] hover:text-purple-300 hover:bg-white/5"
+                          aria-label={`Edit playlist ${pl.title}`}
+                        >
+                          <Edit3 className="h-4 w-4" />
+                        </button>
                         <button
                           type="button"
                           onClick={() => deleteLocalPlaylist(pl.id)}
@@ -233,5 +341,13 @@ export default function LibraryPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function LibraryPage() {
+  return (
+    <Suspense fallback={<CardGridSkeleton count={6} />}>
+      <LibraryPageInner />
+    </Suspense>
   );
 }

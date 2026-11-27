@@ -13,6 +13,7 @@ import {
   Pause,
   Play,
   PlusCircle,
+  Share2,
 } from "lucide-react";
 import type { Track } from "@/types/music";
 import { usePlayer } from "@/context/PlayerContext";
@@ -240,6 +241,23 @@ export function TrackCard({
                 <ExternalLink className="h-3.5 w-3.5" />
                 Song details ({formatDuration(track.duration_seconds)})
               </Link>
+              <button
+                type="button"
+                onClick={async () => {
+                  setMenuOpen(false);
+                  const url = `${window.location.origin}/songs/view/?slug=${encodeURIComponent(track.slug)}`;
+                  if (navigator.share) {
+                    await navigator.share({ title: track.title, url }).catch(() => {});
+                  } else if (navigator.clipboard) {
+                    await navigator.clipboard.writeText(url);
+                    showToast("Song link copied!", "success");
+                  }
+                }}
+                className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg hover:bg-white/5 text-left"
+              >
+                <Share2 className="h-3.5 w-3.5 text-emerald-400" />
+                Share song
+              </button>
             </div>
           )}
         </div>

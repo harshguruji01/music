@@ -7,6 +7,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
   const base = BRAND_CONFIG.siteUrl;
   const routes = [
     "",
+    "/explore/",
     "/songs/",
     "/artists/",
     "/albums/",
@@ -16,6 +17,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     "/featured/",
     "/recent/",
     "/search/",
+    "/favorites/",
     "/library/",
   ];
 

@@ -435,6 +435,70 @@ export async function searchPublishedCatalogClient(opts: {
   };
 }
 
+export async function getCloudFavoritesClient(): Promise<string[]> {
+  if (!isSupabasePublicConfigured()) return [];
+  const supabase = getSupabaseBrowserClient();
+  if (!supabase) return [];
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return [];
+  const { data } = await supabase
+    .from("user_favorites")
+    .select("track_id")
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: false });
+  return ((data || []) as Array<{ track_id: string }>).map((r) => r.track_id);
+}
+
+export async function syncCloudFavoriteClient(trackId: string, favorited: boolean): Promise<void> {
+  if (!isSupabasePublicConfigured()) return;
+  const supabase = getSupabaseBrowserClient();
+  if (!supabase) return;
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return;
+  if (favorited) {
+    await supabase
+      .from("user_favorites")
+      .upsert({ user_id: user.id, track_id: trackId }, { onConflict: "user_id,track_id" });
+  } else {
+    await supabase
+      .from("user_favorites")
+      .delete()
+      .eq("user_id", user.id)
+      .eq("track_id", trackId);
+  }
+}
+
+export async function getCloudListeningHistoryClient(limit = 40): Promise<Track[]> {
+  if (!isSupabasePublicConfigured()) return [];
+  const supabase = getSupabaseBrowserClient();
+  if (!supabase) return [];
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return [];
+  const { data } = await supabase
+    .from("listening_history")
+    .select(`track:tracks(${TRACK_SELECT})`)
+    .eq("user_id", user.id)
+    .order("played_at", { ascending: false })
+    .limit(limit);
+
+  const seen = new Set<string>();
+  const tracks: Track[] = [];
+  for (const row of (data || []) as unknown as Array<{ track: Track | Track[] | null }>) {
+    const t = Array.isArray(row.track) ? row.track[0] ?? null : row.track;
+    if (t && t.is_published && !seen.has(t.id)) {
+      seen.add(t.id);
+      tracks.push(t);
+    }
+  }
+  return tracks;
+}
+
 export async function recordTrackPlayClient(trackId: string): Promise<void> {
   if (!isSupabasePublicConfigured()) return;
   const supabase = getSupabaseBrowserClient();

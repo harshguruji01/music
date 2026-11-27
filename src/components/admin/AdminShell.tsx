@@ -5,7 +5,9 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   Activity,
+  BadgeCheck,
   BarChart3,
+  CheckSquare,
   Disc3,
   Download,
   ExternalLink,
@@ -20,6 +22,7 @@ import {
   Sparkles,
   Tags,
   Upload,
+  UserCog,
   Users,
   X,
 } from "lucide-react";
@@ -28,9 +31,12 @@ import { signOutAdminClient } from "@/lib/admin-api";
 
 const ADMIN_NAV = [
   { href: "/admin/", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/admin/submissions/", label: "Song Moderation", icon: CheckSquare },
   { href: "/admin/library/", label: "Music Library", icon: Music },
   { href: "/admin/upload/", label: "Upload Music", icon: Upload },
+  { href: "/admin/creators/", label: "Creators", icon: BadgeCheck },
   { href: "/admin/artists/", label: "Artists", icon: Users },
+  { href: "/admin/users/", label: "Music Users", icon: UserCog },
   { href: "/admin/albums/", label: "Albums", icon: Disc3 },
   { href: "/admin/playlists/", label: "Playlists", icon: ListMusic },
   { href: "/admin/genres/", label: "Genres", icon: Tags },
@@ -39,6 +45,7 @@ const ADMIN_NAV = [
   { href: "/admin/statistics/", label: "Statistics", icon: BarChart3 },
   { href: "/admin/storage/", label: "Storage", icon: HardDrive },
   { href: "/admin/settings/", label: "Website Settings", icon: Settings },
+  { href: "/admin/moderation-logs/", label: "Moderation Logs", icon: Shield },
   { href: "/admin/activity/", label: "Admin Activity", icon: Activity },
   { href: "/admin/security/", label: "Security", icon: Shield },
 ];

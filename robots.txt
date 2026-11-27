@@ -1,4 +1,9 @@
 User-Agent: *
 Allow: /
+Disallow: /admin/
+Disallow: /studio/
+Disallow: /auth/
+Disallow: /profile/
 
+Host: https://music.webguruji.online
 Sitemap: https://music.webguruji.online/sitemap.xml

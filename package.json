@@ -5,7 +5,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "next build && node scripts/export-to-root.mjs",
+    "build": "next build && python3 scripts/generate_sitemap.py && node scripts/export-to-root.mjs",
+    "sitemap": "python3 scripts/generate_sitemap.py",
     "start": "npx serve out",
     "lint": "eslint src",
     "typecheck": "tsc --noEmit",
