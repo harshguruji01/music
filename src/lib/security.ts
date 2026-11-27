@@ -17,8 +17,8 @@ export function isEmailAllowlisted(email: string | null | undefined): boolean {
 }
 
 export function getAdminSessionMaxAgeSeconds(): number {
-  const parsed = Number(process.env.ADMIN_SESSION_MAX_AGE_SECONDS || "43200");
-  return Number.isFinite(parsed) && parsed >= 300 ? parsed : 43200;
+  const parsed = Number(process.env.ADMIN_SESSION_MAX_AGE_SECONDS || "3600");
+  return Number.isFinite(parsed) && parsed >= 300 ? parsed : 3600;
 }
 
 export function slugify(input: string): string {

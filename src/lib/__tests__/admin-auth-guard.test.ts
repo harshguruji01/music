@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
 import { hasPasswordAuthMethod } from "../admin-api";
+import { getAdminSessionMaxAgeSeconds } from "../security";
 import { getSupabaseConfigValues, isSupabasePublicConfigured } from "../supabase/config";
 import { AppError, normalizeErrorMessage } from "../errors";
 import { validateCreatorPasswordStrength, validateCreatorUsername } from "../music-auth";
@@ -67,6 +68,10 @@ describe("Static-export Admin protection & secret hygiene", () => {
     expect(collectionCards).not.toContain('href="/admin');
     expect(brandLogo).not.toContain("Admin Control Center");
     expect(robots).not.toContain("/admin");
+  });
+
+  it("enforces 1-hour (3600s) default admin session auto-logout", () => {
+    expect(getAdminSessionMaxAgeSeconds()).toBe(3600);
   });
 
   it("public Supabase config defaults to the connected project", () => {

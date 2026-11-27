@@ -233,7 +233,7 @@ Deno.serve(async (req: Request) => {
     }
 
     const rawSessionToken = randomBytes(32).toString("hex");
-    const expiresAt = new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString();
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
     await adminClient.from("creator_sessions").insert({
       creator_id: createdCreator.id,
       user_id: user.id,
@@ -309,7 +309,7 @@ Deno.serve(async (req: Request) => {
     }
 
     const rawSessionToken = randomBytes(32).toString("hex");
-    const expiresAt = new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString();
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
     await adminClient.from("creator_sessions").insert({
       creator_id: creator.id,
       user_id: user.id,

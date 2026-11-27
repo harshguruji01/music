@@ -86,8 +86,12 @@ export default function StudioProtectedLayout({
     Promise.resolve().then(() => {
       if (active) void checkAccess();
     });
+    const interval = setInterval(() => {
+      if (active) void checkAccess();
+    }, 30_000);
     return () => {
       active = false;
+      clearInterval(interval);
     };
   }, [checkAccess]);
 

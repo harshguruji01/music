@@ -8,6 +8,8 @@ import { sanitizeText } from "./security";
 import type { Creator, MusicLoginLog, MusicUser, MusicUserPreferences } from "@/types/music";
 
 const CREATOR_SESSION_KEY = "gm_creator_session_token_v1";
+const CREATOR_SESSION_AT_KEY = "gm_creator_session_at_v1";
+const CREATOR_SESSION_MAX_AGE_MS = 3600 * 1000; // 1 hour auto-logout
 
 export function validateCreatorUsername(username: string): string | null {
   const clean = username.trim().toLowerCase();
@@ -43,7 +45,14 @@ export function hasGoogleIdentity(user: User | null | undefined): boolean {
 function getStoredCreatorToken(): string {
   if (typeof window === "undefined") return "";
   try {
-    return sessionStorage.getItem(CREATOR_SESSION_KEY) || "";
+    const token = sessionStorage.getItem(CREATOR_SESSION_KEY) || "";
+    const ts = Number(sessionStorage.getItem(CREATOR_SESSION_AT_KEY) || "0");
+    if (!token || !Number.isFinite(ts) || Date.now() - ts > CREATOR_SESSION_MAX_AGE_MS) {
+      sessionStorage.removeItem(CREATOR_SESSION_KEY);
+      sessionStorage.removeItem(CREATOR_SESSION_AT_KEY);
+      return "";
+    }
+    return token;
   } catch {
     return "";
   }
@@ -52,8 +61,13 @@ function getStoredCreatorToken(): string {
 function setStoredCreatorToken(token: string | null): void {
   if (typeof window === "undefined") return;
   try {
-    if (token) sessionStorage.setItem(CREATOR_SESSION_KEY, token);
-    else sessionStorage.removeItem(CREATOR_SESSION_KEY);
+    if (token) {
+      sessionStorage.setItem(CREATOR_SESSION_KEY, token);
+      sessionStorage.setItem(CREATOR_SESSION_AT_KEY, String(Date.now()));
+    } else {
+      sessionStorage.removeItem(CREATOR_SESSION_KEY);
+      sessionStorage.removeItem(CREATOR_SESSION_AT_KEY);
+    }
   } catch {
     // ignore
   }
