@@ -24,6 +24,7 @@ import { normalizeErrorMessage } from "@/lib/errors";
 import {
   loginCreatorWithPasswordClient,
   requestCreatorPasswordRecoveryClient,
+  resendMusicSignupConfirmation,
   resetCreatorPasswordClient,
   signInMusicUser,
   signInMusicWithGoogle,
@@ -73,6 +74,7 @@ function AuthPageInner() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [needsConfirmationEmail, setNeedsConfirmationEmail] = useState<string | null>(null);
 
   useEffect(() => {
     if (user && (mode === "signin" || mode === "signup")) {
@@ -92,15 +94,27 @@ function AuthPageInner() {
           setError(res.error);
           return;
         }
+        if (res.needsEmailConfirmation) {
+          setNeedsConfirmationEmail(email.trim().toLowerCase());
+          setNotice(
+            "Account created! Please check your email inbox (and spam folder) and click the confirmation link before signing in."
+          );
+          setMode("signin");
+          return;
+        }
         await refreshAuth();
         showToast("Welcome to Guru Music!", "success");
         router.replace(nextPath);
       } else if (mode === "signin") {
         const res = await signInMusicUser({ email, password });
         if (!res.ok) {
+          if (res.emailNotConfirmed) {
+            setNeedsConfirmationEmail(email.trim().toLowerCase());
+          }
           setError(res.error);
           return;
         }
+        setNeedsConfirmationEmail(null);
         await refreshAuth();
         showToast("Signed in to Guru Music", "success");
         router.replace(nextPath);
@@ -301,6 +315,23 @@ function AuthPageInner() {
               <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5" />
               <span>{notice}</span>
             </div>
+          )}
+
+          {needsConfirmationEmail && (
+            <button
+              type="button"
+              disabled={loading}
+              onClick={async () => {
+                setLoading(true);
+                const r = await resendMusicSignupConfirmation(needsConfirmationEmail);
+                setLoading(false);
+                if (r.ok) showToast("Confirmation email resent!", "success");
+                else setError(r.error || "Unable to resend confirmation email.");
+              }}
+              className="w-full py-2 px-3 rounded-xl bg-purple-500/20 border border-purple-500/30 text-xs font-semibold text-purple-200 hover:bg-purple-500/30"
+            >
+              Resend Confirmation Email to {needsConfirmationEmail}
+            </button>
           )}
 
           {(mode === "signin" || mode === "signup" || mode === "forgot-email") && (

@@ -88,7 +88,10 @@ function extractGoogleSub(
 
   return {
     googleSub: hasGoogleIdentity ? googleSub : null,
-    hasGoogleOAuthSession: hasGoogleIdentity && (isOAuthAmr || user.app_metadata?.provider === "google"),
+    hasGoogleOAuthSession:
+      hasGoogleIdentity &&
+      Boolean(googleSub) &&
+      (isOAuthAmr || user.app_metadata?.provider === "google" || Boolean(googleIdentity)),
   };
 }
 

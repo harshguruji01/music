@@ -72,7 +72,17 @@ async function invokeMusicAuth<T = Record<string, unknown>>(
   });
 
   if (error) {
-    throw new AppError(error.message || "Authentication server error.", "AUTH_GATEWAY_ERROR");
+    let detailed = error.message || "Authentication server error.";
+    const ctx = (error as { context?: Response }).context;
+    if (ctx && typeof ctx.json === "function") {
+      try {
+        const errBody = (await ctx.json()) as { error?: string };
+        if (errBody?.error) detailed = errBody.error;
+      } catch {
+        // ignore parse failure
+      }
+    }
+    throw new AppError(detailed, "AUTH_GATEWAY_ERROR");
   }
   if (data && typeof data === "object" && "error" in data && data.error) {
     throw new AppError(String(data.error), "AUTH_REJECTED");
@@ -157,17 +167,23 @@ export async function signUpMusicUser(params: {
   email: string;
   password: string;
   displayName?: string;
-}): Promise<{ ok: true; user: MusicUser | null } | { ok: false; error: string }> {
+}): Promise<
+  | { ok: true; user: MusicUser | null; needsEmailConfirmation?: boolean }
+  | { ok: false; error: string }
+> {
   const supabase = getSupabaseBrowserClient();
   if (!supabase) return { ok: false, error: "Supabase connection unavailable." };
 
   const email = sanitizeText(params.email, 160).toLowerCase();
   const displayName = sanitizeText(params.displayName || "", 120);
+  const emailRedirectTo =
+    typeof window !== "undefined" ? `${window.location.origin}/auth/` : undefined;
 
   const { data, error } = await supabase.auth.signUp({
     email,
     password: params.password,
     options: {
+      emailRedirectTo,
       data: {
         app_source: "guru_music",
         full_name: displayName || email.split("@")[0],
@@ -179,14 +195,40 @@ export async function signUpMusicUser(params: {
     return { ok: false, error: error?.message || "Unable to create music account." };
   }
 
-  const synced = data.session ? await syncMusicLoginSession("email", displayName) : null;
-  return { ok: true, user: synced };
+  if (Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+    return {
+      ok: false,
+      error: "An account with this email already exists. Please sign in or reset your password.",
+    };
+  }
+
+  if (!data.session) {
+    return { ok: true, user: null, needsEmailConfirmation: true };
+  }
+
+  const synced = await syncMusicLoginSession("email", displayName).catch(() => null);
+  return { ok: true, user: synced, needsEmailConfirmation: false };
+}
+
+export async function resendMusicSignupConfirmation(email: string): Promise<{ ok: boolean; error?: string }> {
+  const supabase = getSupabaseBrowserClient();
+  if (!supabase) return { ok: false, error: "Supabase connection unavailable." };
+  const cleanEmail = sanitizeText(email, 160).toLowerCase();
+  const emailRedirectTo =
+    typeof window !== "undefined" ? `${window.location.origin}/auth/` : undefined;
+  const { error } = await supabase.auth.resend({
+    type: "signup",
+    email: cleanEmail,
+    options: { emailRedirectTo },
+  });
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
 }
 
 export async function signInMusicUser(params: {
   email: string;
   password: string;
-}): Promise<{ ok: true; user: MusicUser | null } | { ok: false; error: string }> {
+}): Promise<{ ok: true; user: MusicUser | null } | { ok: false; error: string; emailNotConfirmed?: boolean }> {
   const supabase = getSupabaseBrowserClient();
   if (!supabase) return { ok: false, error: "Supabase connection unavailable." };
 
@@ -197,10 +239,18 @@ export async function signInMusicUser(params: {
   });
 
   if (error || !data.user) {
-    return { ok: false, error: error?.message || "Invalid email or password." };
+    const msg = error?.message || "Invalid email or password.";
+    const isUnconfirmed = msg.toLowerCase().includes("email not confirmed");
+    return {
+      ok: false,
+      error: isUnconfirmed
+        ? "Please confirm your email address first (check your inbox/spam) before signing in."
+        : msg,
+      emailNotConfirmed: isUnconfirmed,
+    };
   }
 
-  const synced = await syncMusicLoginSession("email");
+  const synced = await syncMusicLoginSession("email").catch(() => null);
   return { ok: true, user: synced };
 }
 
