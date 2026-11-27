@@ -23,7 +23,7 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { BrandLogo } from "@/components/brand/BrandLogo";
+import { AdminBrandLogo } from "@/components/admin/AdminBrandLogo";
 import { signOutAdminClient } from "@/lib/admin-api";
 
 const ADMIN_NAV = [
@@ -67,7 +67,7 @@ export function AdminShell({
     <div className="flex flex-col h-full">
       <div className="px-4 py-5 border-b border-white/10">
         <Link href="/admin/" onClick={() => setMobileOpen(false)}>
-          <BrandLogo variant="admin" />
+          <AdminBrandLogo />
         </Link>
       </div>
 
@@ -137,7 +137,7 @@ export function AdminShell({
               <Menu className="h-5 w-5" />
             </button>
             <div className="lg:hidden">
-              <BrandLogo variant="admin" showOwner={false} />
+              <AdminBrandLogo showOwner={false} />
             </div>
             <span className="hidden lg:inline-block text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
               GURU MUSIC • ADMIN CONTROL CENTER

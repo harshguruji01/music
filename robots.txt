@@ -1,6 +1,4 @@
 User-Agent: *
 Allow: /
-Disallow: /admin
-Disallow: /admin/
 
 Sitemap: https://music.webguruji.online/sitemap.xml

@@ -1,3 +1,6 @@
+const DEFAULT_PUBLIC_SUPABASE_URL = "https://wumdbpyhpblvgjttsbpv.supabase.co";
+const DEFAULT_PUBLIC_SUPABASE_KEY = "sb_publishable_xLqKY9N62MXb6ELG-5trig_RlJs_n-l";
+
 export function getSupabaseConfigValues(): { url: string; anonKey: string } {
   const envUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
   const envAnon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
@@ -22,7 +25,10 @@ export function getSupabaseConfigValues(): { url: string; anonKey: string } {
     }
   }
 
-  return { url: "", anonKey: "" };
+  return {
+    url: DEFAULT_PUBLIC_SUPABASE_URL,
+    anonKey: DEFAULT_PUBLIC_SUPABASE_KEY,
+  };
 }
 
 export function isSupabasePublicConfigured(): boolean {

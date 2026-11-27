@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
 import { hasPasswordAuthMethod } from "../admin-api";
+import { getSupabaseConfigValues, isSupabasePublicConfigured } from "../supabase/config";
 
 function makeJwt(payload: Record<string, unknown>): string {
   const header = Buffer.from(JSON.stringify({ alg: "HS256", typ: "JWT" })).toString("base64url");
@@ -43,7 +44,7 @@ describe("Static-export Admin protection & secret hygiene", () => {
     expect(loginContent).not.toContain('useState("harshguruji01@gmail.com")');
   });
 
-  it("public UI components contain no links to /admin", () => {
+  it("public UI components and robots.ts expose no /admin links or admin labels", () => {
     const appShell = fs.readFileSync(
       path.resolve(process.cwd(), "src/components/layout/AppShell.tsx"),
       "utf8"
@@ -52,8 +53,25 @@ describe("Static-export Admin protection & secret hygiene", () => {
       path.resolve(process.cwd(), "src/components/music/CollectionCards.tsx"),
       "utf8"
     );
+    const brandLogo = fs.readFileSync(
+      path.resolve(process.cwd(), "src/components/brand/BrandLogo.tsx"),
+      "utf8"
+    );
+    const robots = fs.readFileSync(
+      path.resolve(process.cwd(), "src/app/robots.ts"),
+      "utf8"
+    );
     expect(appShell).not.toContain('href="/admin');
     expect(collectionCards).not.toContain('href="/admin');
+    expect(brandLogo).not.toContain("Admin Control Center");
+    expect(robots).not.toContain("/admin");
+  });
+
+  it("public Supabase config defaults to the connected project", () => {
+    const cfg = getSupabaseConfigValues();
+    expect(cfg.url).toBe("https://wumdbpyhpblvgjttsbpv.supabase.co");
+    expect(cfg.anonKey.length).toBeGreaterThan(15);
+    expect(isSupabasePublicConfigured()).toBe(true);
   });
 
   it("no file inside src/ ever reads process.env.SUPABASE_SERVICE_ROLE_KEY", () => {

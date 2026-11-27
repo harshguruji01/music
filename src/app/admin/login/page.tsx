@@ -4,7 +4,7 @@ import React, { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { AlertCircle, ArrowLeft, Database, Lock, Mail, ShieldCheck } from "lucide-react";
-import { BrandLogo } from "@/components/brand/BrandLogo";
+import { AdminBrandLogo } from "@/components/admin/AdminBrandLogo";
 import { signInAdminClient } from "@/lib/admin-api";
 import { isSupabasePublicConfigured } from "@/lib/supabase/config";
 
@@ -69,7 +69,7 @@ function AdminLoginInner() {
 
       <div className="relative z-10 w-full max-w-md space-y-6">
         <div className="flex justify-center">
-          <BrandLogo variant="admin" />
+          <AdminBrandLogo />
         </div>
 
         <div className="gm-surface gm-rainbow-border rounded-3xl p-6 sm:p-8 shadow-2xl space-y-5">
