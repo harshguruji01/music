@@ -1,6 +1,8 @@
 import type { MetadataRoute } from "next";
 import { BRAND_CONFIG } from "@/lib/supabase/config";
 
+export const dynamic = "force-static";
+
 export default function manifest(): MetadataRoute.Manifest {
   return {
     name: `${BRAND_CONFIG.name} — ${BRAND_CONFIG.tagline}`,

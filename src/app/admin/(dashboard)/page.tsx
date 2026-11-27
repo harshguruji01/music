@@ -15,6 +15,7 @@ import {
   Users,
 } from "lucide-react";
 import { formatBytes, formatCount, formatDate } from "@/lib/format";
+import { fetchAdminOverviewClient } from "@/lib/admin-api";
 import type { AdminActivityLog } from "@/types/music";
 
 interface OverviewData {
@@ -32,7 +33,6 @@ interface OverviewData {
     totalStorageBytes: number;
   };
   activitySeries: Array<{ date: string; plays: number; downloads: number; uploads: number }>;
-  genreBreakdown: Array<{ name: string; color: string; count: number }>;
   recentTracks: Array<{ id: string; title: string; is_published: boolean; play_count: number; created_at: string }>;
   recentLogs: AdminActivityLog[];
 }
@@ -42,10 +42,17 @@ export default function AdminDashboardPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/admin/overview")
-      .then((r) => r.json())
-      .then((d) => setData(d))
-      .finally(() => setLoading(false));
+    let active = true;
+    fetchAdminOverviewClient()
+      .then((d) => {
+        if (active) setData(d);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
   }, []);
 
   if (loading) {
@@ -92,15 +99,12 @@ export default function AdminDashboardPage() {
             Live database metrics, upload activity, and audit telemetry for Guru Music.
           </p>
         </div>
-        <div className="flex items-center gap-2 text-xs">
-          <span className="px-3 py-1.5 rounded-full bg-emerald-500/15 text-emerald-300 inline-flex items-center gap-1.5 font-semibold">
-            <ShieldCheck className="h-3.5 w-3.5" />
-            RLS & Role Guard Active
-          </span>
-        </div>
+        <span className="px-3 py-1.5 rounded-full bg-emerald-500/15 text-emerald-300 inline-flex items-center gap-1.5 font-semibold text-xs">
+          <ShieldCheck className="h-3.5 w-3.5" />
+          PostgreSQL RLS Guard Active
+        </span>
       </div>
 
-      {/* Stat Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {cards.map((c) => {
           const Icon = c.icon;
@@ -116,7 +120,6 @@ export default function AdminDashboardPage() {
         })}
       </div>
 
-      {/* Activity Chart & Totals */}
       <div className="grid lg:grid-cols-[2fr_1fr] gap-6">
         <div className="gm-surface rounded-2xl p-5 space-y-4">
           <div className="flex items-center justify-between">
@@ -125,9 +128,9 @@ export default function AdminDashboardPage() {
               <p className="text-xs text-slate-400">Real plays, downloads, and uploads</p>
             </div>
             <div className="flex items-center gap-4 text-[11px]">
-              <span className="flex items-center gap-1 text-blue-400">● Plays ({formatCount(s?.totalPlays)})</span>
-              <span className="flex items-center gap-1 text-emerald-400">● Downloads ({formatCount(s?.totalDownloads)})</span>
-              <span className="flex items-center gap-1 text-amber-400">● Uploads</span>
+              <span className="text-blue-400">● Plays ({formatCount(s?.totalPlays)})</span>
+              <span className="text-emerald-400">● Downloads ({formatCount(s?.totalDownloads)})</span>
+              <span className="text-amber-400">● Uploads</span>
             </div>
           </div>
 
@@ -143,22 +146,11 @@ export default function AdminDashboardPage() {
                   className="flex-1 flex flex-col items-center gap-1 h-full justify-end"
                 >
                   <div className="w-full flex items-end justify-center gap-0.5 h-32">
-                    <div
-                      className="w-1.5 rounded-t bg-blue-500/80 min-h-[2px]"
-                      style={{ height: `${Math.max(3, pH)}%` }}
-                    />
-                    <div
-                      className="w-1.5 rounded-t bg-emerald-500/80 min-h-[2px]"
-                      style={{ height: `${Math.max(3, dH)}%` }}
-                    />
-                    <div
-                      className="w-1.5 rounded-t bg-amber-500/80 min-h-[2px]"
-                      style={{ height: `${Math.max(3, uH)}%` }}
-                    />
+                    <div className="w-1.5 rounded-t bg-blue-500/80 min-h-[2px]" style={{ height: `${Math.max(3, pH)}%` }} />
+                    <div className="w-1.5 rounded-t bg-emerald-500/80 min-h-[2px]" style={{ height: `${Math.max(3, dH)}%` }} />
+                    <div className="w-1.5 rounded-t bg-amber-500/80 min-h-[2px]" style={{ height: `${Math.max(3, uH)}%` }} />
                   </div>
-                  <span className="text-[9px] text-slate-500 rotate-0 hidden sm:block">
-                    {day.date.slice(5)}
-                  </span>
+                  <span className="text-[9px] text-slate-500 hidden sm:block">{day.date.slice(5)}</span>
                 </div>
               );
             })}
@@ -170,7 +162,7 @@ export default function AdminDashboardPage() {
           {(data?.recentTracks || []).length === 0 ? (
             <p className="text-xs text-slate-400">
               No tracks uploaded yet.{" "}
-              <Link href="/admin/upload" className="text-purple-400 underline">
+              <Link href="/admin/upload/" className="text-purple-400 underline">
                 Upload your first track
               </Link>
               .
@@ -185,9 +177,7 @@ export default function AdminDashboardPage() {
                   </div>
                   <span
                     className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                      t.is_published
-                        ? "bg-emerald-500/15 text-emerald-300"
-                        : "bg-amber-500/15 text-amber-300"
+                      t.is_published ? "bg-emerald-500/15 text-emerald-300" : "bg-amber-500/15 text-amber-300"
                     }`}
                   >
                     {t.is_published ? "Published" : "Draft"}
@@ -199,14 +189,13 @@ export default function AdminDashboardPage() {
         </div>
       </div>
 
-      {/* Recent Admin Activity */}
       <div className="gm-surface rounded-2xl p-5 space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-base font-bold flex items-center gap-2">
             <Activity className="h-4 w-4 text-purple-400" />
             Recent Administrative Actions
           </h2>
-          <Link href="/admin/activity" className="text-xs text-purple-400 hover:underline">
+          <Link href="/admin/activity/" className="text-xs text-purple-400 hover:underline">
             View full audit log
           </Link>
         </div>

@@ -23,7 +23,9 @@ import {
   VolumeX,
 } from "lucide-react";
 import { usePlayer } from "@/context/PlayerContext";
+import { useToast } from "@/context/ToastContext";
 import { BRAND_CONFIG } from "@/lib/supabase/config";
+import { downloadAuthorizedTrackClient } from "@/lib/public-api";
 import { formatDuration } from "@/lib/format";
 
 export function FullScreenPlayer({
@@ -61,6 +63,7 @@ export function FullScreenPlayer({
     removeFromQueue,
   } = usePlayer();
 
+  const { showToast } = useToast();
   const [tab, setTab] = useState<"artwork" | "lyrics" | "queue">("artwork");
 
   if (!currentTrack) return null;
@@ -118,14 +121,17 @@ export function FullScreenPlayer({
 
             <div className="flex items-center gap-2">
               {canDownload && (
-                <a
-                  href={`/api/tracks/${currentTrack.id}/download`}
-                  download
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const res = await downloadAuthorizedTrackClient(currentTrack, downloadPolicy);
+                    if (!res.ok && res.error) showToast(res.error, "error");
+                  }}
                   className="p-2 rounded-xl hover:bg-white/10 text-emerald-400"
                   aria-label="Download track"
                 >
                   <Download className="h-5 w-5" />
-                </a>
+                </button>
               )}
             </div>
           </div>
@@ -148,7 +154,7 @@ export function FullScreenPlayer({
                 <div className="w-full flex items-center justify-between gap-4 mb-2">
                   <div className="text-left min-w-0">
                     <Link
-                      href={`/songs/${currentTrack.slug}`}
+                      href={`/songs/view/?slug=${encodeURIComponent(currentTrack.slug)}`}
                       onClick={() => setFullScreenOpen(false)}
                       className="text-xl sm:text-2xl font-bold truncate block hover:underline"
                     >

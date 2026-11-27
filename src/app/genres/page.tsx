@@ -1,11 +1,22 @@
-import { getGenres } from "@/lib/data";
+"use client";
+
+import React, { useEffect, useState } from "react";
+import { DEFAULT_GENRES, getGenresClient } from "@/lib/public-api";
 import { GenreCard } from "@/components/music/CollectionCards";
+import type { Genre } from "@/types/music";
 
-export const dynamic = "force-dynamic";
-export const metadata = { title: "Genres" };
+export default function GenresPage() {
+  const [genres, setGenres] = useState<Genre[]>(DEFAULT_GENRES);
 
-export default async function GenresPage() {
-  const genres = await getGenres();
+  useEffect(() => {
+    let active = true;
+    getGenresClient().then((g) => {
+      if (active && g.length > 0) setGenres(g);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   return (
     <div className="space-y-6">

@@ -5,6 +5,13 @@ import Image from "next/image";
 import { ArrowDown, ArrowUp, Eye, EyeOff, Plus, Sparkles, Trash2 } from "lucide-react";
 import type { Playlist, Track } from "@/types/music";
 import { BRAND_CONFIG } from "@/lib/supabase/config";
+import {
+  createAdminPlaylistClient,
+  deleteAdminPlaylistClient,
+  fetchAdminPlaylistsClient,
+  fetchAdminTracksClient,
+  updateAdminPlaylistClient,
+} from "@/lib/admin-api";
 
 interface AdminPlaylistRow extends Playlist {
   playlist_tracks?: Array<{
@@ -23,34 +30,42 @@ export default function AdminPlaylistsPage() {
   const [selectedPlaylist, setSelectedPlaylist] = useState<AdminPlaylistRow | null>(null);
   const [selectedTrackIds, setSelectedTrackIds] = useState<string[]>([]);
 
-  const load = useCallback(() => {
-    Promise.all([
-      fetch("/api/admin/playlists").then((r) => r.json()),
-      fetch("/api/admin/tracks?pageSize=50").then((r) => r.json()),
-    ]).then(([plRes, trRes]) => {
-      setPlaylists(plRes.playlists || []);
-      setAllTracks(trRes.tracks || []);
-    });
+  const load = useCallback(async () => {
+    const [pls, tr] = await Promise.all([
+      fetchAdminPlaylistsClient(),
+      fetchAdminTracksClient({ pageSize: 100 }),
+    ]);
+    setPlaylists(pls as unknown as AdminPlaylistRow[]);
+    setAllTracks(tr.tracks);
   }, []);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    let active = true;
+    Promise.all([fetchAdminPlaylistsClient(), fetchAdminTracksClient({ pageSize: 100 })]).then(
+      ([pls, tr]) => {
+        if (!active) return;
+        setPlaylists(pls as unknown as AdminPlaylistRow[]);
+        setAllTracks(tr.tracks);
+      }
+    );
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
-    const fd = new FormData();
-    fd.append("title", title.trim());
-    fd.append("description", description.trim());
-    fd.append("is_published", String(isPublished));
-    if (coverFile) fd.append("cover", coverFile);
-
-    await fetch("/api/admin/playlists", { method: "POST", body: fd });
+    await createAdminPlaylistClient({
+      title: title.trim(),
+      description: description.trim(),
+      isPublished,
+      coverFile,
+    });
     setTitle("");
     setDescription("");
     setCoverFile(null);
-    load();
+    await load();
   };
 
   const openManageTracks = (pl: AdminPlaylistRow) => {
@@ -64,13 +79,9 @@ export default function AdminPlaylistsPage() {
 
   const savePlaylistTracks = async () => {
     if (!selectedPlaylist) return;
-    await fetch("/api/admin/playlists", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: selectedPlaylist.id, trackIds: selectedTrackIds }),
-    });
+    await updateAdminPlaylistClient(selectedPlaylist.id, {}, selectedTrackIds);
     setSelectedPlaylist(null);
-    load();
+    await load();
   };
 
   const moveTrack = (idx: number, delta: number) => {
@@ -94,42 +105,16 @@ export default function AdminPlaylistsPage() {
       <form onSubmit={handleCreate} className="gm-surface rounded-2xl p-6 space-y-4 max-w-2xl">
         <h2 className="text-base font-bold">Create Official Playlist</h2>
         <div className="grid sm:grid-cols-2 gap-4">
-          <input
-            type="text"
-            required
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="Playlist title *"
-            className="px-3.5 py-2.5 rounded-xl bg-black/40 border border-white/10 text-sm"
-          />
-          <input
-            type="file"
-            accept=".jpg,.jpeg,.png,.webp,image/*"
-            onChange={(e) => setCoverFile(e.target.files?.[0] || null)}
-            className="px-3 py-2 rounded-xl bg-black/40 border border-white/10 text-xs"
-          />
+          <input type="text" required value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Playlist title *" className="px-3.5 py-2.5 rounded-xl bg-black/40 border border-white/10 text-sm" />
+          <input type="file" accept=".jpg,.jpeg,.png,.webp,image/*" onChange={(e) => setCoverFile(e.target.files?.[0] || null)} className="px-3 py-2 rounded-xl bg-black/40 border border-white/10 text-xs" />
         </div>
-        <textarea
-          rows={2}
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          placeholder="Playlist description..."
-          className="w-full px-3.5 py-2.5 rounded-xl bg-black/40 border border-white/10 text-sm"
-        />
+        <textarea rows={2} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Playlist description..." className="w-full px-3.5 py-2.5 rounded-xl bg-black/40 border border-white/10 text-sm" />
         <div className="flex items-center justify-between">
           <label className="flex items-center gap-2 text-xs">
-            <input
-              type="checkbox"
-              checked={isPublished}
-              onChange={(e) => setIsPublished(e.target.checked)}
-              className="accent-emerald-500"
-            />
+            <input type="checkbox" checked={isPublished} onChange={(e) => setIsPublished(e.target.checked)} className="accent-emerald-500" />
             Publish publicly
           </label>
-          <button
-            type="submit"
-            className="px-5 py-2.5 rounded-xl gm-rainbow-gradient text-white text-xs font-bold inline-flex items-center gap-1.5"
-          >
+          <button type="submit" className="px-5 py-2.5 rounded-xl gm-rainbow-gradient text-white text-xs font-bold inline-flex items-center gap-1.5">
             <Plus className="h-4 w-4" /> Create Playlist
           </button>
         </div>
@@ -139,68 +124,26 @@ export default function AdminPlaylistsPage() {
         {playlists.map((pl) => (
           <div key={pl.id} className="gm-surface rounded-2xl p-4 space-y-3">
             <div className="flex items-center gap-3">
-              <Image
-                src={pl.cover_url || BRAND_CONFIG.defaultCoverPath}
-                alt={pl.title}
-                width={52}
-                height={52}
-                className="rounded-xl object-cover shrink-0"
-              />
+              <Image src={pl.cover_url || BRAND_CONFIG.defaultCoverPath} alt={pl.title} width={52} height={52} className="rounded-xl object-cover shrink-0" />
               <div className="min-w-0 flex-1">
                 <p className="font-bold text-sm truncate">{pl.title}</p>
                 <p className="text-[11px] text-slate-400">
-                  {pl.playlist_tracks?.length || 0} tracks •{" "}
-                  {pl.is_published ? "Published" : "Draft"}
+                  {pl.playlist_tracks?.length || 0} tracks • {pl.is_published ? "Published" : "Draft"}
                 </p>
               </div>
             </div>
             <div className="flex items-center justify-between pt-2 border-t border-white/10">
-              <button
-                type="button"
-                onClick={() => openManageTracks(pl)}
-                className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 text-xs font-semibold"
-              >
+              <button type="button" onClick={() => openManageTracks(pl)} className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 text-xs font-semibold">
                 Manage Tracks
               </button>
               <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  onClick={async () => {
-                    await fetch("/api/admin/playlists", {
-                      method: "PATCH",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ id: pl.id, is_featured: !pl.is_featured }),
-                    });
-                    load();
-                  }}
-                  className={`p-1.5 rounded-lg hover:bg-white/10 ${
-                    pl.is_featured ? "text-amber-400" : "text-slate-400"
-                  }`}
-                >
+                <button type="button" onClick={async () => { await updateAdminPlaylistClient(pl.id, { is_featured: !pl.is_featured }); await load(); }} className={`p-1.5 rounded-lg hover:bg-white/10 ${pl.is_featured ? "text-amber-400" : "text-slate-400"}`}>
                   <Sparkles className="h-4 w-4" />
                 </button>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    await fetch("/api/admin/playlists", {
-                      method: "PATCH",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ id: pl.id, is_published: !pl.is_published }),
-                    });
-                    load();
-                  }}
-                  className="p-1.5 rounded-lg hover:bg-white/10 text-emerald-400"
-                >
+                <button type="button" onClick={async () => { await updateAdminPlaylistClient(pl.id, { is_published: !pl.is_published }); await load(); }} className="p-1.5 rounded-lg hover:bg-white/10 text-emerald-400">
                   {pl.is_published ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    await fetch(`/api/admin/playlists?id=${pl.id}`, { method: "DELETE" });
-                    load();
-                  }}
-                  className="p-1.5 rounded-lg hover:bg-white/10 text-rose-400"
-                >
+                <button type="button" onClick={async () => { await deleteAdminPlaylistClient(pl.id, pl.cover_path); await load(); }} className="p-1.5 rounded-lg hover:bg-white/10 text-rose-400">
                   <Trash2 className="h-4 w-4" />
                 </button>
               </div>
@@ -240,12 +183,7 @@ export default function AdminPlaylistsPage() {
                   {allTracks
                     .filter((t) => !selectedTrackIds.includes(t.id))
                     .map((t) => (
-                      <button
-                        key={t.id}
-                        type="button"
-                        onClick={() => setSelectedTrackIds((p) => [...p, t.id])}
-                        className="w-full text-left px-2.5 py-2 rounded-lg bg-black/30 hover:bg-white/10 text-xs truncate"
-                      >
+                      <button key={t.id} type="button" onClick={() => setSelectedTrackIds((p) => [...p, t.id])} className="w-full text-left px-2.5 py-2 rounded-lg bg-black/30 hover:bg-white/10 text-xs truncate">
                         + {t.title}
                       </button>
                     ))}

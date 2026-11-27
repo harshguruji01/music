@@ -3,8 +3,10 @@
 import React, { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { AlertCircle, ArrowLeft, Lock, Mail, ShieldCheck } from "lucide-react";
+import { AlertCircle, ArrowLeft, Database, Lock, Mail, ShieldCheck } from "lucide-react";
 import { BrandLogo } from "@/components/brand/BrandLogo";
+import { signInAdminClient } from "@/lib/admin-api";
+import { isSupabasePublicConfigured } from "@/lib/supabase/config";
 
 function AdminLoginInner() {
   const router = useRouter();
@@ -14,32 +16,46 @@ function AdminLoginInner() {
   const [email, setEmail] = useState("harshguruji01@gmail.com");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [configured, setConfigured] = useState(() => isSupabasePublicConfigured());
+  const [sbUrl, setSbUrl] = useState("");
+  const [sbAnon, setSbAnon] = useState("");
+  const [showConn, setShowConn] = useState(!configured);
+
   const [error, setError] = useState<string | null>(() => {
     if (reason === "expired") return "Your administrator session expired. Please sign in again.";
     if (reason === "unauthorized") return "Unauthorized account. Only the allowlisted administrator may enter.";
     if (reason === "forbidden") return "Administrator role is not provisioned for this account.";
-    if (reason === "unconfigured") return "Supabase environment variables are not configured yet.";
+    if (reason === "unconfigured") return "Connect your Supabase project URL & Anon Key below to continue.";
     return null;
   });
+
+  const handleSaveSupabase = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!sbUrl.startsWith("https://") || sbAnon.length < 15) {
+      setError("Please enter a valid Supabase Project URL (https://...) and Anon Key.");
+      return;
+    }
+    localStorage.setItem(
+      "gm_runtime_supabase_v1",
+      JSON.stringify({ url: sbUrl.trim(), anonKey: sbAnon.trim() })
+    );
+    setConfigured(true);
+    setShowConn(false);
+    setError(null);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setLoading(true);
     try {
-      const res = await fetch("/api/admin/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim(), password }),
-      });
-      const data = await res.json().catch(() => ({}));
+      const res = await signInAdminClient(email.trim(), password);
       if (!res.ok) {
-        setError(data.error || "Sign in failed.");
+        setError(res.error);
         setLoading(false);
         return;
       }
-      router.push("/admin");
-      router.refresh();
+      router.replace("/admin/");
     } catch {
       setError("Network error while authenticating.");
       setLoading(false);
@@ -64,7 +80,7 @@ function AdminLoginInner() {
             </div>
             <h1 className="text-2xl font-black tracking-tight">Sign in to Guru Music CMS</h1>
             <p className="text-xs text-slate-400">
-              Server-verified Supabase authentication with allowlist and role-based access control.
+              Verified via Supabase Auth, allowlist email, and PostgreSQL RLS role check.
             </p>
           </div>
 
@@ -73,6 +89,36 @@ function AdminLoginInner() {
               <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
               <span>{error}</span>
             </div>
+          )}
+
+          {showConn && (
+            <form onSubmit={handleSaveSupabase} className="rounded-2xl bg-black/40 border border-white/10 p-4 space-y-3">
+              <p className="text-xs font-bold text-blue-400 flex items-center gap-1.5">
+                <Database className="h-3.5 w-3.5" /> Connect Supabase Project
+              </p>
+              <input
+                type="url"
+                required
+                value={sbUrl}
+                onChange={(e) => setSbUrl(e.target.value)}
+                placeholder="https://your-project.supabase.co"
+                className="w-full px-3 py-2 rounded-xl bg-black/50 border border-white/10 text-xs"
+              />
+              <input
+                type="text"
+                required
+                value={sbAnon}
+                onChange={(e) => setSbAnon(e.target.value)}
+                placeholder="Supabase Anon Public Key"
+                className="w-full px-3 py-2 rounded-xl bg-black/50 border border-white/10 text-xs"
+              />
+              <button
+                type="submit"
+                className="w-full py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold"
+              >
+                Save Supabase Connection
+              </button>
+            </form>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -115,21 +161,22 @@ function AdminLoginInner() {
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || !configured}
               className="w-full py-3 rounded-xl gm-rainbow-gradient text-white font-bold text-sm shadow-lg shadow-purple-500/25 hover:opacity-95 disabled:opacity-60 transition-opacity"
             >
               {loading ? "Verifying Session..." : "Enter Control Center"}
             </button>
           </form>
 
-          <div className="pt-2 border-t border-white/10 text-[11px] text-slate-400 space-y-1">
-            <p>
-              First-time setup? Run{" "}
-              <code className="px-1.5 py-0.5 rounded bg-white/10 text-slate-200">
-                pnpm admin:provision
-              </code>{" "}
-              after applying Supabase migrations to set your private password.
-            </p>
+          <div className="pt-2 border-t border-white/10 flex items-center justify-between text-[11px] text-slate-400">
+            <span>Provision via <code>pnpm admin:provision</code></span>
+            <button
+              type="button"
+              onClick={() => setShowConn((v) => !v)}
+              className="text-blue-400 hover:underline"
+            >
+              {showConn ? "Hide Config" : "Supabase Config"}
+            </button>
           </div>
         </div>
 

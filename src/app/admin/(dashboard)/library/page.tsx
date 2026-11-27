@@ -18,6 +18,12 @@ import {
 import type { Track } from "@/types/music";
 import { BRAND_CONFIG } from "@/lib/supabase/config";
 import { formatDate, formatDuration } from "@/lib/format";
+import {
+  deleteAdminTrackClient,
+  fetchAdminTracksClient,
+  getAdminTrackPreviewUrlClient,
+  updateAdminTrackClient,
+} from "@/lib/admin-api";
 
 export default function AdminLibraryPage() {
   const [tracks, setTracks] = useState<Track[]>([]);
@@ -37,19 +43,10 @@ export default function AdminLibraryPage() {
   const [confirmDelete, setConfirmDelete] = useState<{ ids: string[]; label: string } | null>(null);
 
   const loadTracks = useCallback(async () => {
-    const params = new URLSearchParams({
-      page: String(page),
-      pageSize: "15",
-      status,
-      sort,
-    });
-    if (q.trim()) params.set("q", q.trim());
-
     try {
-      const r = await fetch(`/api/admin/tracks?${params.toString()}`);
-      const d = await r.json();
-      setTracks(d.tracks || []);
-      setTotal(d.total || 0);
+      const d = await fetchAdminTracksClient({ page, pageSize: 15, q, status, sort });
+      setTracks(d.tracks);
+      setTotal(d.total);
     } finally {
       setLoading(false);
     }
@@ -57,37 +54,23 @@ export default function AdminLibraryPage() {
 
   useEffect(() => {
     let active = true;
-    const params = new URLSearchParams({
-      page: String(page),
-      pageSize: "15",
-      status,
-      sort,
-    });
-    if (q.trim()) params.set("q", q.trim());
-
-    fetch(`/api/admin/tracks?${params.toString()}`)
-      .then((r) => r.json())
+    fetchAdminTracksClient({ page, pageSize: 15, q, status, sort })
       .then((d) => {
         if (!active) return;
-        setTracks(d.tracks || []);
-        setTotal(d.total || 0);
+        setTracks(d.tracks);
+        setTotal(d.total);
       })
       .finally(() => {
         if (active) setLoading(false);
       });
-
     return () => {
       active = false;
     };
   }, [page, q, status, sort]);
 
   const patchTrack = async (id: string, payload: Record<string, unknown>) => {
-    await fetch(`/api/admin/tracks/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    loadTracks();
+    await updateAdminTrackClient(id, payload);
+    await loadTracks();
   };
 
   const handleBulkAction = async (action: string) => {
@@ -96,37 +79,29 @@ export default function AdminLibraryPage() {
       setConfirmDelete({ ids: selectedIds, label: `${selectedIds.length} selected tracks` });
       return;
     }
-    await fetch("/api/admin/tracks", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ids: selectedIds, action }),
-    });
+    for (const id of selectedIds) {
+      if (action === "publish") await updateAdminTrackClient(id, { is_published: true });
+      if (action === "unpublish") await updateAdminTrackClient(id, { is_published: false });
+      if (action === "enable_download") await updateAdminTrackClient(id, { is_downloadable: true });
+      if (action === "disable_download") await updateAdminTrackClient(id, { is_downloadable: false });
+    }
     setSelectedIds([]);
-    loadTracks();
+    await loadTracks();
   };
 
   const executeDelete = async () => {
     if (!confirmDelete) return;
-    if (confirmDelete.ids.length === 1) {
-      await fetch(`/api/admin/tracks/${confirmDelete.ids[0]}`, { method: "DELETE" });
-    } else {
-      await fetch("/api/admin/tracks", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ids: confirmDelete.ids, action: "delete" }),
-      });
+    for (const id of confirmDelete.ids) {
+      await deleteAdminTrackClient(id);
     }
     setConfirmDelete(null);
     setSelectedIds([]);
-    loadTracks();
+    await loadTracks();
   };
 
   const openPreview = async (track: Track) => {
-    const res = await fetch(`/api/admin/tracks/${track.id}/preview`);
-    const data = await res.json();
-    if (data.url) {
-      setPreviewTrack({ title: track.title, url: data.url });
-    }
+    const url = await getAdminTrackPreviewUrlClient(track);
+    if (url) setPreviewTrack({ title: track.title, url });
   };
 
   const toggleAll = () => {
@@ -146,14 +121,13 @@ export default function AdminLibraryPage() {
           </p>
         </div>
         <Link
-          href="/admin/upload"
+          href="/admin/upload/"
           className="px-4 py-2.5 rounded-xl gm-rainbow-gradient text-white text-xs font-bold inline-flex items-center gap-1.5"
         >
           <Plus className="h-4 w-4" /> Upload Track
         </Link>
       </div>
 
-      {/* Filters & Search */}
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative flex-1 min-w-[220px] max-w-sm">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -196,7 +170,6 @@ export default function AdminLibraryPage() {
         </select>
       </div>
 
-      {/* Bulk actions */}
       {selectedIds.length > 0 && (
         <div className="gm-surface rounded-xl px-4 py-2.5 flex flex-wrap items-center justify-between gap-3">
           <span className="text-xs font-semibold">{selectedIds.length} selected</span>
@@ -210,7 +183,6 @@ export default function AdminLibraryPage() {
         </div>
       )}
 
-      {/* Preview Bar */}
       {previewTrack && (
         <div className="gm-surface gm-rainbow-border rounded-2xl p-4 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -218,29 +190,18 @@ export default function AdminLibraryPage() {
             <span className="text-sm font-semibold truncate">{previewTrack.title}</span>
             <audio controls autoPlay src={previewTrack.url} className="h-8 flex-1 max-w-md" />
           </div>
-          <button
-            type="button"
-            onClick={() => setPreviewTrack(null)}
-            className="p-1.5 rounded-lg hover:bg-white/10"
-            aria-label="Close preview"
-          >
+          <button type="button" onClick={() => setPreviewTrack(null)} className="p-1.5 rounded-lg hover:bg-white/10" aria-label="Close preview">
             <X className="h-4 w-4" />
           </button>
         </div>
       )}
 
-      {/* Table */}
       <div className="gm-surface rounded-2xl overflow-x-auto">
         <table className="w-full text-xs">
           <thead>
             <tr className="text-left text-slate-400 border-b border-white/10">
               <th className="p-3.5">
-                <input
-                  type="checkbox"
-                  checked={tracks.length > 0 && selectedIds.length === tracks.length}
-                  onChange={toggleAll}
-                  aria-label="Select all tracks"
-                />
+                <input type="checkbox" checked={tracks.length > 0 && selectedIds.length === tracks.length} onChange={toggleAll} aria-label="Select all tracks" />
               </th>
               <th className="p-3.5 font-semibold">Track</th>
               <th className="p-3.5 font-semibold">Artist</th>
@@ -256,15 +217,11 @@ export default function AdminLibraryPage() {
           <tbody className="divide-y divide-white/5">
             {loading ? (
               <tr>
-                <td colSpan={10} className="p-8 text-center text-slate-400">
-                  Loading music library...
-                </td>
+                <td colSpan={10} className="p-8 text-center text-slate-400">Loading music library...</td>
               </tr>
             ) : tracks.length === 0 ? (
               <tr>
-                <td colSpan={10} className="p-8 text-center text-slate-400">
-                  No tracks match your filter. Upload music to get started.
-                </td>
+                <td colSpan={10} className="p-8 text-center text-slate-400">No tracks match your filter. Upload music to get started.</td>
               </tr>
             ) : (
               tracks.map((track) => (
@@ -275,9 +232,7 @@ export default function AdminLibraryPage() {
                       checked={selectedIds.includes(track.id)}
                       onChange={() =>
                         setSelectedIds((prev) =>
-                          prev.includes(track.id)
-                            ? prev.filter((i) => i !== track.id)
-                            : [...prev, track.id]
+                          prev.includes(track.id) ? prev.filter((i) => i !== track.id) : [...prev, track.id]
                         )
                       }
                       aria-label={`Select ${track.title}`}
@@ -285,16 +240,8 @@ export default function AdminLibraryPage() {
                   </td>
                   <td className="p-3.5">
                     <div className="flex items-center gap-3 min-w-[180px]">
-                      <Image
-                        src={track.cover_url || BRAND_CONFIG.defaultCoverPath}
-                        alt={track.title}
-                        width={40}
-                        height={40}
-                        className="rounded-lg object-cover shrink-0"
-                      />
-                      <span className="font-semibold text-white truncate max-w-[180px]">
-                        {track.title}
-                      </span>
+                      <Image src={track.cover_url || BRAND_CONFIG.defaultCoverPath} alt={track.title} width={40} height={40} className="rounded-lg object-cover shrink-0" />
+                      <span className="font-semibold text-white truncate max-w-[180px]">{track.title}</span>
                     </div>
                   </td>
                   <td className="p-3.5 text-slate-300">{track.artist?.name || "—"}</td>
@@ -303,13 +250,7 @@ export default function AdminLibraryPage() {
                   <td className="p-3.5 text-slate-400 whitespace-nowrap">{formatDate(track.created_at)}</td>
                   <td className="p-3.5 tabular-nums text-slate-300">{formatDuration(track.duration_seconds)}</td>
                   <td className="p-3.5">
-                    <span
-                      className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                        track.is_published
-                          ? "bg-emerald-500/15 text-emerald-300"
-                          : "bg-amber-500/15 text-amber-300"
-                      }`}
-                    >
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${track.is_published ? "bg-emerald-500/15 text-emerald-300" : "bg-amber-500/15 text-amber-300"}`}>
                       {track.is_published ? "Published" : "Draft"}
                     </span>
                   </td>
@@ -317,49 +258,23 @@ export default function AdminLibraryPage() {
                     <button
                       type="button"
                       onClick={() => patchTrack(track.id, { is_downloadable: !track.is_downloadable })}
-                      className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                        track.is_downloadable
-                          ? "bg-blue-500/15 text-blue-300"
-                          : "bg-white/10 text-slate-400"
-                      }`}
+                      className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${track.is_downloadable ? "bg-blue-500/15 text-blue-300" : "bg-white/10 text-slate-400"}`}
                     >
                       {track.is_downloadable ? "Enabled" : "Disabled"}
                     </button>
                   </td>
                   <td className="p-3.5">
                     <div className="flex items-center justify-end gap-1">
-                      <button
-                        type="button"
-                        onClick={() => openPreview(track)}
-                        title="Preview audio"
-                        className="p-1.5 rounded-lg hover:bg-white/10 text-blue-400"
-                      >
+                      <button type="button" onClick={() => openPreview(track)} title="Preview audio" className="p-1.5 rounded-lg hover:bg-white/10 text-blue-400">
                         <Play className="h-3.5 w-3.5" />
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => patchTrack(track.id, { is_published: !track.is_published })}
-                        title={track.is_published ? "Unpublish" : "Publish"}
-                        className="p-1.5 rounded-lg hover:bg-white/10 text-emerald-400"
-                      >
+                      <button type="button" onClick={() => patchTrack(track.id, { is_published: !track.is_published })} title={track.is_published ? "Unpublish" : "Publish"} className="p-1.5 rounded-lg hover:bg-white/10 text-emerald-400">
                         {track.is_published ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => patchTrack(track.id, { is_featured: !track.is_featured })}
-                        title={track.is_featured ? "Unfeature" : "Feature"}
-                        className={`p-1.5 rounded-lg hover:bg-white/10 ${
-                          track.is_featured ? "text-amber-400" : "text-slate-400"
-                        }`}
-                      >
+                      <button type="button" onClick={() => patchTrack(track.id, { is_featured: !track.is_featured })} title={track.is_featured ? "Unfeature" : "Feature"} className={`p-1.5 rounded-lg hover:bg-white/10 ${track.is_featured ? "text-amber-400" : "text-slate-400"}`}>
                         <Sparkles className="h-3.5 w-3.5" />
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => patchTrack(track.id, { is_downloadable: !track.is_downloadable })}
-                        title="Toggle download permission"
-                        className="p-1.5 rounded-lg hover:bg-white/10 text-cyan-400"
-                      >
+                      <button type="button" onClick={() => patchTrack(track.id, { is_downloadable: !track.is_downloadable })} title="Toggle download permission" className="p-1.5 rounded-lg hover:bg-white/10 text-cyan-400">
                         <Download className="h-3.5 w-3.5" />
                       </button>
                       <button
@@ -375,12 +290,7 @@ export default function AdminLibraryPage() {
                       >
                         <Edit3 className="h-3.5 w-3.5" />
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => setConfirmDelete({ ids: [track.id], label: track.title })}
-                        title="Delete track"
-                        className="p-1.5 rounded-lg hover:bg-white/10 text-rose-400"
-                      >
+                      <button type="button" onClick={() => setConfirmDelete({ ids: [track.id], label: track.title })} title="Delete track" className="p-1.5 rounded-lg hover:bg-white/10 text-rose-400">
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
                     </div>
@@ -392,77 +302,31 @@ export default function AdminLibraryPage() {
         </table>
       </div>
 
-      {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex items-center justify-between text-xs">
-          <span className="text-slate-400">
-            Page {page} of {totalPages}
-          </span>
+          <span className="text-slate-400">Page {page} of {totalPages}</span>
           <div className="flex gap-2">
-            <button
-              type="button"
-              disabled={page <= 1}
-              onClick={() => setPage((p) => p - 1)}
-              className="px-3 py-1.5 rounded-lg gm-surface disabled:opacity-40"
-            >
-              Previous
-            </button>
-            <button
-              type="button"
-              disabled={page >= totalPages}
-              onClick={() => setPage((p) => p + 1)}
-              className="px-3 py-1.5 rounded-lg gm-surface disabled:opacity-40"
-            >
-              Next
-            </button>
+            <button type="button" disabled={page <= 1} onClick={() => setPage((p) => p - 1)} className="px-3 py-1.5 rounded-lg gm-surface disabled:opacity-40">Previous</button>
+            <button type="button" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)} className="px-3 py-1.5 rounded-lg gm-surface disabled:opacity-40">Next</button>
           </div>
         </div>
       )}
 
-      {/* Edit Modal */}
       {editing && (
         <div className="fixed inset-0 z-50 bg-black/75 flex items-center justify-center p-4">
           <div className="gm-surface rounded-2xl p-6 max-w-md w-full space-y-4">
             <h2 className="text-lg font-bold">Edit Track Metadata</h2>
             <div className="space-y-3">
-              <input
-                type="text"
-                value={editTitle}
-                onChange={(e) => setEditTitle(e.target.value)}
-                placeholder="Track title"
-                className="w-full px-3.5 py-2.5 rounded-xl bg-black/40 border border-white/10 text-sm"
-              />
-              <input
-                type="text"
-                value={editLanguage}
-                onChange={(e) => setEditLanguage(e.target.value)}
-                placeholder="Language"
-                className="w-full px-3.5 py-2.5 rounded-xl bg-black/40 border border-white/10 text-sm"
-              />
-              <textarea
-                rows={3}
-                value={editDescription}
-                onChange={(e) => setEditDescription(e.target.value)}
-                placeholder="Description"
-                className="w-full px-3.5 py-2.5 rounded-xl bg-black/40 border border-white/10 text-sm"
-              />
+              <input type="text" value={editTitle} onChange={(e) => setEditTitle(e.target.value)} placeholder="Track title" className="w-full px-3.5 py-2.5 rounded-xl bg-black/40 border border-white/10 text-sm" />
+              <input type="text" value={editLanguage} onChange={(e) => setEditLanguage(e.target.value)} placeholder="Language" className="w-full px-3.5 py-2.5 rounded-xl bg-black/40 border border-white/10 text-sm" />
+              <textarea rows={3} value={editDescription} onChange={(e) => setEditDescription(e.target.value)} placeholder="Description" className="w-full px-3.5 py-2.5 rounded-xl bg-black/40 border border-white/10 text-sm" />
             </div>
             <div className="flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setEditing(null)}
-                className="px-4 py-2 rounded-xl bg-white/5 text-xs font-semibold"
-              >
-                Cancel
-              </button>
+              <button type="button" onClick={() => setEditing(null)} className="px-4 py-2 rounded-xl bg-white/5 text-xs font-semibold">Cancel</button>
               <button
                 type="button"
                 onClick={async () => {
-                  await patchTrack(editing.id, {
-                    title: editTitle,
-                    description: editDescription,
-                    language: editLanguage,
-                  });
+                  await patchTrack(editing.id, { title: editTitle, description: editDescription, language: editLanguage });
                   setEditing(null);
                 }}
                 className="px-4 py-2 rounded-xl gm-rainbow-gradient text-white text-xs font-bold"
@@ -474,30 +338,16 @@ export default function AdminLibraryPage() {
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
       {confirmDelete && (
         <div className="fixed inset-0 z-50 bg-black/75 flex items-center justify-center p-4">
           <div className="gm-surface rounded-2xl p-6 max-w-sm w-full space-y-4">
             <h2 className="text-lg font-bold text-rose-400">Confirm Deletion</h2>
             <p className="text-xs text-slate-300 leading-relaxed">
-              Permanently delete <strong>{confirmDelete.label}</strong>? This will also remove the
-              associated audio and artwork files from Supabase Storage.
+              Permanently delete <strong>{confirmDelete.label}</strong>? This will also remove associated audio and artwork files from Supabase Storage.
             </p>
             <div className="flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setConfirmDelete(null)}
-                className="px-4 py-2 rounded-xl bg-white/5 text-xs font-semibold"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={executeDelete}
-                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold"
-              >
-                Delete Permanently
-              </button>
+              <button type="button" onClick={() => setConfirmDelete(null)} className="px-4 py-2 rounded-xl bg-white/5 text-xs font-semibold">Cancel</button>
+              <button type="button" onClick={executeDelete} className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold">Delete Permanently</button>
             </div>
           </div>
         </div>

@@ -22,7 +22,9 @@ import {
   VolumeX,
 } from "lucide-react";
 import { usePlayer } from "@/context/PlayerContext";
+import { useToast } from "@/context/ToastContext";
 import { BRAND_CONFIG } from "@/lib/supabase/config";
+import { downloadAuthorizedTrackClient } from "@/lib/public-api";
 import { formatDuration } from "@/lib/format";
 
 export function BottomPlayer({
@@ -58,6 +60,7 @@ export function BottomPlayer({
     toggleFavorite,
   } = usePlayer();
 
+  const { showToast } = useToast();
   const [speedMenuOpen, setSpeedMenuOpen] = useState(false);
   const speedMenuRef = useRef<HTMLDivElement>(null);
 
@@ -125,7 +128,7 @@ export function BottomPlayer({
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5">
               <Link
-                href={`/songs/${currentTrack.slug}`}
+                href={`/songs/view/?slug=${encodeURIComponent(currentTrack.slug)}`}
                 className="text-sm font-semibold truncate hover:underline text-[var(--gm-text)]"
               >
                 {currentTrack.title}
@@ -138,7 +141,10 @@ export function BottomPlayer({
             </div>
             <p className="text-xs text-[var(--gm-text-muted)] truncate">
               {currentTrack.artist ? (
-                <Link href={`/artists/${currentTrack.artist.slug}`} className="hover:underline">
+                <Link
+                  href={`/artists/view/?slug=${encodeURIComponent(currentTrack.artist.slug)}`}
+                  className="hover:underline"
+                >
                   {currentTrack.artist.name}
                 </Link>
               ) : (
@@ -287,15 +293,18 @@ export function BottomPlayer({
           </div>
 
           {canDownload && (
-            <a
-              href={`/api/tracks/${currentTrack.id}/download`}
-              download
+            <button
+              type="button"
+              onClick={async () => {
+                const res = await downloadAuthorizedTrackClient(currentTrack, downloadPolicy);
+                if (!res.ok && res.error) showToast(res.error, "error");
+              }}
               aria-label={`Download ${currentTrack.title}`}
               className="p-2 rounded-lg text-[var(--gm-text-muted)] hover:text-emerald-400 hover:bg-white/5 transition-colors"
               title="Download track"
             >
               <Download className="h-4 w-4" />
-            </a>
+            </button>
           )}
 
           <button

@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Clock, Heart, ListMusic, Play, Plus, Shuffle, Trash2 } from "lucide-react";
 import { usePlayer } from "@/context/PlayerContext";
+import { resolvePublishedTracksByIdsClient } from "@/lib/public-api";
 import type { Track } from "@/types/music";
 import { TrackCard } from "@/components/music/TrackCard";
 import { EmptyLibraryState, TrackRow } from "@/components/music/CollectionCards";
@@ -32,15 +33,9 @@ export default function LibraryPage() {
     if (allIds.length === 0) return;
 
     let active = true;
-    fetch("/api/library/resolve", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ids: allIds }),
-    })
-      .then((r) => r.json())
-      .then((data) => {
+    resolvePublishedTracksByIdsClient(allIds)
+      .then((list) => {
         if (!active) return;
-        const list = (Array.isArray(data.tracks) ? data.tracks : []) as Track[];
         const map = new Map<string, Track>();
         for (const t of list) map.set(t.id, t);
         setResolvedMap(map);
@@ -74,7 +69,7 @@ export default function LibraryPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           {(
             [
               { id: "favorites", label: `Favorites (${favoriteTracks.length})`, icon: Heart },
@@ -187,9 +182,7 @@ export default function LibraryPage() {
                     <div className="flex items-center justify-between gap-4">
                       <div>
                         <h3 className="text-lg font-bold">{pl.title}</h3>
-                        <p className="text-xs text-[var(--gm-text-muted)]">
-                          {tracks.length} tracks
-                        </p>
+                        <p className="text-xs text-[var(--gm-text-muted)]">{tracks.length} tracks</p>
                       </div>
                       <div className="flex items-center gap-2">
                         {tracks.length > 0 && (

@@ -1,11 +1,27 @@
-import { getPublishedAlbums } from "@/lib/data";
-import { AlbumCard, EmptyLibraryState } from "@/components/music/CollectionCards";
+"use client";
 
-export const dynamic = "force-dynamic";
-export const metadata = { title: "Albums" };
+import React, { useEffect, useState } from "react";
+import { getPublishedAlbumsClient } from "@/lib/public-api";
+import { AlbumCard, CardGridSkeleton, EmptyLibraryState } from "@/components/music/CollectionCards";
+import type { Album } from "@/types/music";
 
-export default async function AlbumsPage() {
-  const albums = await getPublishedAlbums(60);
+export default function AlbumsPage() {
+  const [albums, setAlbums] = useState<Album[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    getPublishedAlbumsClient(60)
+      .then((a) => {
+        if (active) setAlbums(a);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -16,7 +32,9 @@ export default async function AlbumsPage() {
         </p>
       </div>
 
-      {albums.length === 0 ? (
+      {loading ? (
+        <CardGridSkeleton count={6} />
+      ) : albums.length === 0 ? (
         <EmptyLibraryState
           title="No Published Albums Yet"
           subtitle="Create and publish albums in the Admin Control Center to showcase full releases here."

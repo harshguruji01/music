@@ -1,11 +1,27 @@
-import { getPublishedPlaylists } from "@/lib/data";
-import { EmptyLibraryState, PlaylistCard } from "@/components/music/CollectionCards";
+"use client";
 
-export const dynamic = "force-dynamic";
-export const metadata = { title: "Playlists" };
+import React, { useEffect, useState } from "react";
+import { getPublishedPlaylistsClient } from "@/lib/public-api";
+import { CardGridSkeleton, EmptyLibraryState, PlaylistCard } from "@/components/music/CollectionCards";
+import type { Playlist } from "@/types/music";
 
-export default async function PlaylistsPage() {
-  const playlists = await getPublishedPlaylists(60);
+export default function PlaylistsPage() {
+  const [playlists, setPlaylists] = useState<Playlist[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    getPublishedPlaylistsClient(60)
+      .then((p) => {
+        if (active) setPlaylists(p);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -16,7 +32,9 @@ export default async function PlaylistsPage() {
         </p>
       </div>
 
-      {playlists.length === 0 ? (
+      {loading ? (
+        <CardGridSkeleton count={6} />
+      ) : playlists.length === 0 ? (
         <EmptyLibraryState
           title="No Official Playlists Published Yet"
           subtitle="Create and publish curated playlists in the Admin Control Center, or create personal mixes in Your Library."

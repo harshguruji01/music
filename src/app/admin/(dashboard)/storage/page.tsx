@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { HardDrive, Trash2 } from "lucide-react";
 import { formatBytes } from "@/lib/format";
+import { cleanupOrphanStorageClient, fetchAdminStorageClient } from "@/lib/admin-api";
 
 interface BucketStat {
   id: string;
@@ -10,28 +11,30 @@ interface BucketStat {
   visibility: string;
   fileCount: number;
   totalBytes: number;
-  files: Array<{ name: string; size: number; updatedAt: string }>;
 }
 
 export default function AdminStoragePage() {
   const [buckets, setBuckets] = useState<BucketStat[]>([]);
   const [cleanupMsg, setCleanupMsg] = useState<string | null>(null);
 
-  const load = useCallback(() => {
-    fetch("/api/admin/storage")
-      .then((r) => r.json())
-      .then((d) => setBuckets(d.buckets || []));
+  const load = useCallback(async () => {
+    setBuckets(await fetchAdminStorageClient());
   }, []);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    let active = true;
+    fetchAdminStorageClient().then((b) => {
+      if (active) setBuckets(b);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const runCleanup = async () => {
-    const res = await fetch("/api/admin/storage", { method: "POST" });
-    const data = await res.json();
-    setCleanupMsg(`Cleaned up ${data.removedCount ?? 0} orphaned storage objects.`);
-    load();
+    const removedCount = await cleanupOrphanStorageClient();
+    setCleanupMsg(`Cleaned up ${removedCount} orphaned storage objects.`);
+    await load();
   };
 
   return (
@@ -43,19 +46,13 @@ export default function AdminStoragePage() {
             Inspect all 6 Supabase Storage buckets. Draft audio stays strictly private.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={runCleanup}
-          className="px-4 py-2 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs font-semibold inline-flex items-center gap-1.5"
-        >
+        <button type="button" onClick={runCleanup} className="px-4 py-2 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs font-semibold inline-flex items-center gap-1.5">
           <Trash2 className="h-3.5 w-3.5" /> Clean Orphaned Files
         </button>
       </div>
 
       {cleanupMsg && (
-        <div className="rounded-xl bg-emerald-500/15 border border-emerald-500/30 p-3 text-xs text-emerald-200">
-          {cleanupMsg}
-        </div>
+        <div className="rounded-xl bg-emerald-500/15 border border-emerald-500/30 p-3 text-xs text-emerald-200">{cleanupMsg}</div>
       )}
 
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -66,13 +63,7 @@ export default function AdminStoragePage() {
                 <HardDrive className="h-4 w-4 text-blue-400" />
                 <span className="font-bold text-sm">{b.label}</span>
               </div>
-              <span
-                className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                  b.visibility.includes("Private")
-                    ? "bg-amber-500/20 text-amber-300"
-                    : "bg-emerald-500/15 text-emerald-300"
-                }`}
-              >
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${b.visibility.includes("Private") ? "bg-amber-500/20 text-amber-300" : "bg-emerald-500/15 text-emerald-300"}`}>
                 {b.visibility}
               </span>
             </div>

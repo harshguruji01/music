@@ -4,6 +4,7 @@ import React, { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Clock, Search as SearchIcon, Trash2, X } from "lucide-react";
 import type { Album, Artist, Genre, Playlist, Track } from "@/types/music";
+import { searchPublishedCatalogClient } from "@/lib/public-api";
 import { TrackCard } from "@/components/music/TrackCard";
 import {
   AlbumCard,
@@ -72,16 +73,14 @@ function SearchClientInner() {
 
   useEffect(() => {
     let active = true;
-    const params = new URLSearchParams();
-    if (query.trim()) params.set("q", query.trim());
-    params.set("type", filterType);
-    if (selectedGenre) params.set("genre", selectedGenre);
-
     const timer = setTimeout(() => {
       setLoading(true);
-      fetch(`/api/search?${params.toString()}`)
-        .then((res) => res.json())
-        .then((data: SearchResultsPayload) => {
+      searchPublishedCatalogClient({
+        q: query.trim(),
+        type: filterType,
+        genreSlug: selectedGenre || undefined,
+      })
+        .then((data) => {
           if (active) setResults(data);
         })
         .catch(() => {})
@@ -107,9 +106,9 @@ function SearchClientInner() {
       } catch {
         // ignore
       }
-      router.replace(`/search?q=${encodeURIComponent(cleaned)}`);
+      router.replace(`/search/?q=${encodeURIComponent(cleaned)}`);
     } else {
-      router.replace("/search");
+      router.replace("/search/");
     }
   };
 
@@ -155,7 +154,6 @@ function SearchClientInner() {
           )}
         </form>
 
-        {/* Filter Chips */}
         <div className="flex flex-wrap items-center gap-2">
           {(
             [
@@ -193,7 +191,6 @@ function SearchClientInner() {
         </div>
       </div>
 
-      {/* Recent Searches */}
       {recentSearches.length > 0 && !query && (
         <section className="space-y-3">
           <div className="flex items-center justify-between max-w-2xl">
@@ -234,7 +231,7 @@ function SearchClientInner() {
             {query ? `No matches for "${query}"` : "No published results yet"}
           </h2>
           <p className="text-sm text-[var(--gm-text-muted)] mt-1">
-            Try another song title, artist name, album, or browse genres below.
+            Try another song title, artist name, album, or publish tracks from the Admin Control Center.
           </p>
         </div>
       ) : (

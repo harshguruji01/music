@@ -1,16 +1,24 @@
 "use client";
 
-import { createBrowserClient } from "@supabase/ssr";
-import { isSupabasePublicConfigured } from "./config";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { getSupabaseConfigValues, isSupabasePublicConfigured } from "./config";
 
-let browserClient: ReturnType<typeof createBrowserClient> | null = null;
+let browserClient: SupabaseClient | null = null;
+let cachedKey = "";
 
-export function getSupabaseBrowserClient() {
+export function getSupabaseBrowserClient(): SupabaseClient | null {
   if (!isSupabasePublicConfigured()) return null;
-  if (browserClient) return browserClient;
-  browserClient = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  const { url, anonKey } = getSupabaseConfigValues();
+  const nextKey = `${url}|${anonKey}`;
+  if (browserClient && cachedKey === nextKey) return browserClient;
+
+  cachedKey = nextKey;
+  browserClient = createClient(url, anonKey, {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+    },
+  });
   return browserClient;
 }

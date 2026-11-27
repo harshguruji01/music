@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { BarChart3 } from "lucide-react";
 import { formatCount } from "@/lib/format";
+import { fetchAdminOverviewClient } from "@/lib/admin-api";
 
 interface StatsPayload {
   stats: {
@@ -19,9 +20,13 @@ export default function AdminStatisticsPage() {
   const [data, setData] = useState<StatsPayload | null>(null);
 
   useEffect(() => {
-    fetch("/api/admin/overview")
-      .then((r) => r.json())
-      .then(setData);
+    let active = true;
+    fetchAdminOverviewClient().then((d) => {
+      if (active) setData(d);
+    });
+    return () => {
+      active = false;
+    };
   }, []);
 
   return (
@@ -64,12 +69,8 @@ export default function AdminStatisticsPage() {
             <div className="space-y-3">
               {data?.topTracks.map((t, i) => (
                 <div key={t.id} className="flex items-center justify-between text-xs">
-                  <span className="font-semibold truncate">
-                    {i + 1}. {t.title}
-                  </span>
-                  <span className="text-slate-400 tabular-nums">
-                    {t.play_count} plays • {t.download_count} dl
-                  </span>
+                  <span className="font-semibold truncate">{i + 1}. {t.title}</span>
+                  <span className="text-slate-400 tabular-nums">{t.play_count} plays • {t.download_count} dl</span>
                 </div>
               ))}
             </div>

@@ -313,7 +313,7 @@ export function HomeClient({
               <section key={key}>
                 <SectionHeader
                   title={cfg?.label || genreInfo.title}
-                  href={`/genres/${genreInfo.slug}`}
+                  href={`/genres/view/?slug=${encodeURIComponent(genreInfo.slug)}`}
                 />
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
                   {matched.slice(0, 6).map((track) => (

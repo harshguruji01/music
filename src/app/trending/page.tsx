@@ -1,21 +1,43 @@
-import { getPublishedTracks, getSiteSettings } from "@/lib/data";
+"use client";
+
+import React, { useEffect, useState } from "react";
+import { getPublishedTracksClient, getSiteSettingsClient } from "@/lib/public-api";
 import { TrackCollectionView } from "@/components/music/TrackCollectionPage";
+import { CardGridSkeleton } from "@/components/music/CollectionCards";
+import type { Track } from "@/types/music";
 
-export const dynamic = "force-dynamic";
-export const metadata = { title: "Trending Songs" };
+export default function TrendingPage() {
+  const [tracks, setTracks] = useState<Track[]>([]);
+  const [policy, setPolicy] = useState<"track_level" | "disabled">("track_level");
+  const [loading, setLoading] = useState(true);
 
-export default async function TrendingPage() {
-  const [tracks, settings] = await Promise.all([
-    getPublishedTracks({ limit: 60, sortBy: "trending" }),
-    getSiteSettings(),
-  ]);
+  useEffect(() => {
+    let active = true;
+    Promise.all([
+      getPublishedTracksClient({ limit: 100, sortBy: "trending" }),
+      getSiteSettingsClient(),
+    ])
+      .then(([t, s]) => {
+        if (!active) return;
+        setTracks(t);
+        setPolicy(s.public_download_policy);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  if (loading) return <CardGridSkeleton count={6} />;
 
   return (
     <TrackCollectionView
       title="Trending Songs"
-      subtitle="Most played tracks on Guru Music right now."
+      subtitle="Most played published tracks on Guru Music right now."
       tracks={tracks}
-      downloadPolicy={settings.public_download_policy}
+      downloadPolicy={policy}
     />
   );
 }

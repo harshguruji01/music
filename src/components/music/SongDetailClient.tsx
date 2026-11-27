@@ -6,7 +6,9 @@ import Link from "next/link";
 import { Calendar, Clock, Disc3, Download, Heart, ListPlus, Music2, Pause, Play, User } from "lucide-react";
 import type { Track } from "@/types/music";
 import { usePlayer } from "@/context/PlayerContext";
+import { useToast } from "@/context/ToastContext";
 import { BRAND_CONFIG } from "@/lib/supabase/config";
+import { downloadAuthorizedTrackClient } from "@/lib/public-api";
 import { formatCount, formatDate, formatDuration } from "@/lib/format";
 import { TrackCard } from "./TrackCard";
 
@@ -21,6 +23,7 @@ export function SongDetailClient({
 }) {
   const { currentTrack, isPlaying, favorites, playTrack, togglePlayPause, addToQueue, toggleFavorite } =
     usePlayer();
+  const { showToast } = useToast();
 
   const isActive = currentTrack?.id === track.id;
   const isFav = favorites.includes(track.id);
@@ -46,7 +49,7 @@ export function SongDetailClient({
             <div className="flex flex-wrap items-center gap-2 text-xs font-semibold">
               {track.genre && (
                 <Link
-                  href={`/genres/${track.genre.slug}`}
+                  href={`/genres/view/?slug=${encodeURIComponent(track.genre.slug)}`}
                   className="px-3 py-1 rounded-full bg-white/10 hover:bg-white/15"
                 >
                   {track.genre.name}
@@ -70,7 +73,7 @@ export function SongDetailClient({
               <span className="inline-flex items-center gap-1.5 text-[var(--gm-text)] font-semibold">
                 <User className="h-4 w-4 text-blue-400" />
                 {track.artist ? (
-                  <Link href={`/artists/${track.artist.slug}`} className="hover:underline">
+                  <Link href={`/artists/view/?slug=${encodeURIComponent(track.artist.slug)}`} className="hover:underline">
                     {track.artist.name}
                   </Link>
                 ) : (
@@ -81,7 +84,7 @@ export function SongDetailClient({
               {track.album && (
                 <span className="inline-flex items-center gap-1.5">
                   <Disc3 className="h-4 w-4 text-purple-400" />
-                  <Link href={`/albums/${track.album.slug}`} className="hover:underline">
+                  <Link href={`/albums/view/?slug=${encodeURIComponent(track.album.slug)}`} className="hover:underline">
                     {track.album.title}
                   </Link>
                 </span>
@@ -151,14 +154,17 @@ export function SongDetailClient({
               </button>
 
               {canDownload && (
-                <a
-                  href={`/api/tracks/${track.id}/download`}
-                  download
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const res = await downloadAuthorizedTrackClient(track, downloadPolicy);
+                    if (!res.ok && res.error) showToast(res.error, "error");
+                  }}
                   className="px-5 py-3 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/25 text-sm font-semibold inline-flex items-center gap-2"
                 >
                   <Download className="h-4 w-4" />
                   Download
-                </a>
+                </button>
               )}
             </div>
           </div>

@@ -52,7 +52,7 @@ CREATE TRIGGER trg_user_roles_updated_at
 
 CREATE INDEX IF NOT EXISTS idx_user_roles_user_id ON public.user_roles(user_id);
 
--- Helper function to verify admin role via SECURITY DEFINER
+-- Helper function to verify admin role + allowlisted email via SECURITY DEFINER
 CREATE OR REPLACE FUNCTION public.is_admin()
 RETURNS boolean
 LANGUAGE sql
@@ -63,8 +63,10 @@ AS $$
   SELECT EXISTS (
     SELECT 1
     FROM public.user_roles ur
+    JOIN auth.users au ON au.id = ur.user_id
     WHERE ur.user_id = auth.uid()
       AND ur.role = 'admin'
+      AND lower(coalesce(au.email, '')) = 'harshguruji01@gmail.com'
   );
 $$;
 
@@ -470,36 +472,83 @@ CREATE POLICY "site_settings_public_read" ON public.site_settings
 CREATE POLICY "site_settings_admin_update" ON public.site_settings
   FOR ALL USING (public.is_admin()) WITH CHECK (public.is_admin());
 
--- Admin Activity Logs: strictly admin read; writes happen via server-side service role
+-- Admin Activity Logs: strictly admin read & insert (or via failed-login RPC)
 CREATE POLICY "admin_logs_admin_read" ON public.admin_activity_logs
   FOR SELECT USING (public.is_admin());
 
--- Auth Rate Limits: zero public/authenticated access (service_role bypasses RLS)
+CREATE POLICY "admin_logs_admin_insert" ON public.admin_activity_logs
+  FOR INSERT WITH CHECK (public.is_admin());
+
+-- Auth Rate Limits: zero public/authenticated access (service_role / RPC only)
 -- No policies created intentionally.
 
 -- User Favorites: users manage their own favorites
 CREATE POLICY "user_favorites_own" ON public.user_favorites
   FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
--- Atomic increment RPC helpers (called server-side)
-CREATE OR REPLACE FUNCTION public.increment_play_count(target_track_id uuid)
+-- Atomic RPC helpers executable from static web client safely
+CREATE OR REPLACE FUNCTION public.record_play_event(target_track_id uuid, p_session_id text DEFAULT 'web-listener')
 RETURNS void
-LANGUAGE sql
+LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
 AS $$
-  UPDATE public.tracks
-  SET play_count = play_count + 1
-  WHERE id = target_track_id AND is_published = true;
+BEGIN
+  IF EXISTS (SELECT 1 FROM public.tracks WHERE id = target_track_id AND is_published = true) THEN
+    INSERT INTO public.play_events (track_id, user_id, session_id)
+    VALUES (target_track_id, auth.uid(), left(coalesce(p_session_id, 'web-listener'), 80));
+
+    UPDATE public.tracks
+    SET play_count = play_count + 1
+    WHERE id = target_track_id AND is_published = true;
+  END IF;
+END;
 $$;
 
-CREATE OR REPLACE FUNCTION public.increment_download_count(target_track_id uuid)
-RETURNS void
-LANGUAGE sql
+CREATE OR REPLACE FUNCTION public.record_download_event(target_track_id uuid)
+RETURNS boolean
+LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
 AS $$
-  UPDATE public.tracks
-  SET download_count = download_count + 1
-  WHERE id = target_track_id AND is_published = true AND is_downloadable = true;
+DECLARE
+  policy text;
+BEGIN
+  SELECT public_download_policy INTO policy FROM public.site_settings WHERE id = 1;
+  IF coalesce(policy, 'track_level') = 'disabled' THEN
+    RETURN false;
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM public.tracks
+    WHERE id = target_track_id AND is_published = true AND is_downloadable = true
+  ) THEN
+    INSERT INTO public.download_events (track_id, user_id)
+    VALUES (target_track_id, auth.uid());
+
+    UPDATE public.tracks
+    SET download_count = download_count + 1
+    WHERE id = target_track_id AND is_published = true AND is_downloadable = true;
+    RETURN true;
+  END IF;
+  RETURN false;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.log_failed_admin_login(attempted_email text, reason text DEFAULT 'Invalid credentials')
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  INSERT INTO public.admin_activity_logs (admin_email, action, resource_type, details, status)
+  VALUES (
+    left(lower(coalesce(attempted_email, '')), 160),
+    'admin.login.failed',
+    'auth',
+    jsonb_build_object('reason', left(coalesce(reason, 'Invalid credentials'), 200)),
+    'failure'
+  );
+END;
 $$;

@@ -1,25 +1,23 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import type { AdminActivityLog } from "@/types/music";
+import { fetchAdminLogsClient } from "@/lib/admin-api";
 
 export default function AdminActivityPage() {
   const [logs, setLogs] = useState<AdminActivityLog[]>([]);
   const [status, setStatus] = useState("");
   const [actionFilter, setActionFilter] = useState("");
 
-  const load = useCallback(() => {
-    const params = new URLSearchParams();
-    if (status) params.set("status", status);
-    if (actionFilter.trim()) params.set("action", actionFilter.trim());
-    fetch(`/api/admin/activity?${params.toString()}`)
-      .then((r) => r.json())
-      .then((d) => setLogs(d.logs || []));
-  }, [status, actionFilter]);
-
   useEffect(() => {
-    load();
-  }, [load]);
+    let active = true;
+    fetchAdminLogsClient(status || undefined, actionFilter || undefined).then((d) => {
+      if (active) setLogs(d);
+    });
+    return () => {
+      active = false;
+    };
+  }, [status, actionFilter]);
 
   return (
     <div className="space-y-6">
@@ -31,18 +29,8 @@ export default function AdminActivityPage() {
       </div>
 
       <div className="flex flex-wrap gap-3">
-        <input
-          type="search"
-          value={actionFilter}
-          onChange={(e) => setActionFilter(e.target.value)}
-          placeholder="Filter by action (e.g. login, upload, delete)..."
-          className="px-3.5 py-2 rounded-xl gm-surface text-xs w-64"
-        />
-        <select
-          value={status}
-          onChange={(e) => setStatus(e.target.value)}
-          className="px-3.5 py-2 rounded-xl gm-surface text-xs"
-        >
+        <input type="search" value={actionFilter} onChange={(e) => setActionFilter(e.target.value)} placeholder="Filter by action (e.g. login, upload, delete)..." className="px-3.5 py-2 rounded-xl gm-surface text-xs w-64" />
+        <select value={status} onChange={(e) => setStatus(e.target.value)} className="px-3.5 py-2 rounded-xl gm-surface text-xs">
           <option value="">All Statuses</option>
           <option value="success">Success</option>
           <option value="failure">Failure</option>
@@ -65,30 +53,16 @@ export default function AdminActivityPage() {
           <tbody className="divide-y divide-white/5">
             {logs.map((log) => (
               <tr key={log.id}>
-                <td className="p-3.5 text-slate-400 whitespace-nowrap">
-                  {new Date(log.created_at).toLocaleString()}
-                </td>
+                <td className="p-3.5 text-slate-400 whitespace-nowrap">{new Date(log.created_at).toLocaleString()}</td>
                 <td className="p-3.5 font-mono text-white">{log.action}</td>
                 <td className="p-3.5 text-slate-300">{log.admin_email || "—"}</td>
-                <td className="p-3.5 text-slate-400">
-                  {log.resource_type ? `${log.resource_type}` : "—"}
-                </td>
+                <td className="p-3.5 text-slate-400">{log.resource_type || "—"}</td>
                 <td className="p-3.5">
-                  <span
-                    className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                      log.status === "success"
-                        ? "bg-emerald-500/15 text-emerald-300"
-                        : log.status === "blocked"
-                          ? "bg-rose-500/15 text-rose-300"
-                          : "bg-amber-500/15 text-amber-300"
-                    }`}
-                  >
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${log.status === "success" ? "bg-emerald-500/15 text-emerald-300" : log.status === "blocked" ? "bg-rose-500/15 text-rose-300" : "bg-amber-500/15 text-amber-300"}`}>
                     {log.status}
                   </span>
                 </td>
-                <td className="p-3.5 font-mono text-[11px] text-slate-400 max-w-xs truncate">
-                  {JSON.stringify(log.details)}
-                </td>
+                <td className="p-3.5 font-mono text-[11px] text-slate-400 max-w-xs truncate">{JSON.stringify(log.details)}</td>
               </tr>
             ))}
           </tbody>

@@ -11,6 +11,7 @@ import React, {
 } from "react";
 import type { LocalPlaylist, Track } from "@/types/music";
 import { BRAND_CONFIG } from "@/lib/supabase/config";
+import { recordTrackPlayClient, resolvePublishedTracksByIdsClient } from "@/lib/public-api";
 import { useToast } from "./ToastContext";
 
 export type RepeatMode = "off" | "all" | "one";
@@ -161,22 +162,15 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (recentIds.length === 0) return;
     let active = true;
-    fetch("/api/library/resolve", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ids: recentIds }),
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        if (!active || !Array.isArray(data.tracks)) return;
+    resolvePublishedTracksByIdsClient(recentIds)
+      .then((tracks) => {
+        if (!active) return;
         const map = new Map<string, Track>();
-        for (const t of data.tracks as Track[]) map.set(t.id, t);
+        for (const t of tracks) map.set(t.id, t);
         const ordered = recentIds.map((id) => map.get(id)).filter((t): t is Track => Boolean(t));
         setRecentTracks(ordered);
       })
-      .catch(() => {
-        // offline or unconfigured
-      });
+      .catch(() => {});
     return () => {
       active = false;
     };
@@ -217,11 +211,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const recordPlayEvent = useCallback((trackId: string) => {
     if (lastRecordedPlayIdRef.current === trackId) return;
     lastRecordedPlayIdRef.current = trackId;
-    fetch(`/api/tracks/${trackId}/play`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sessionId: "web-listener" }),
-    }).catch(() => {});
+    recordTrackPlayClient(trackId).catch(() => {});
   }, []);
 
   // Load new track into single persistent <audio> element only when track ID/URL changes

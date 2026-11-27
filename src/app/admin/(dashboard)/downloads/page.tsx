@@ -2,43 +2,49 @@
 
 import React, { useCallback, useEffect, useState } from "react";
 import { Download, ShieldAlert } from "lucide-react";
-import type { SiteSettings, Track } from "@/types/music";
+import type { Track } from "@/types/music";
+import {
+  fetchAdminTracksClient,
+  saveSiteSettingsClient,
+  updateAdminTrackClient,
+} from "@/lib/admin-api";
+import { getSiteSettingsClient } from "@/lib/public-api";
 
 export default function AdminDownloadsPage() {
   const [tracks, setTracks] = useState<Track[]>([]);
   const [policy, setPolicy] = useState<"track_level" | "disabled">("track_level");
 
-  const load = useCallback(() => {
-    Promise.all([
-      fetch("/api/admin/tracks?pageSize=50").then((r) => r.json()),
-      fetch("/api/admin/settings").then((r) => r.json()),
-    ]).then(([tRes, sRes]) => {
-      setTracks(tRes.tracks || []);
-      const s = sRes.settings as SiteSettings | undefined;
-      if (s?.public_download_policy) setPolicy(s.public_download_policy);
-    });
+  const load = useCallback(async () => {
+    const [tRes, s] = await Promise.all([
+      fetchAdminTracksClient({ pageSize: 50 }),
+      getSiteSettingsClient(),
+    ]);
+    setTracks(tRes.tracks);
+    setPolicy(s.public_download_policy);
   }, []);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    let active = true;
+    Promise.all([fetchAdminTracksClient({ pageSize: 50 }), getSiteSettingsClient()]).then(
+      ([tRes, s]) => {
+        if (!active) return;
+        setTracks(tRes.tracks);
+        setPolicy(s.public_download_policy);
+      }
+    );
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const updatePolicy = async (next: "track_level" | "disabled") => {
     setPolicy(next);
-    await fetch("/api/admin/settings", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ public_download_policy: next }),
-    });
+    await saveSiteSettingsClient({ public_download_policy: next });
   };
 
   const toggleTrackDownload = async (track: Track) => {
-    await fetch(`/api/admin/tracks/${track.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ is_downloadable: !track.is_downloadable }),
-    });
-    load();
+    await updateAdminTrackClient(track.id, { is_downloadable: !track.is_downloadable });
+    await load();
   };
 
   return (
@@ -46,7 +52,7 @@ export default function AdminDownloadsPage() {
       <div>
         <h1 className="text-3xl font-black tracking-tight">Download Management</h1>
         <p className="text-sm text-slate-400 mt-1">
-          Only published, explicitly authorized tracks can be downloaded through the secure download API.
+          Only published, explicitly authorized tracks can be downloaded on Guru Music.
         </p>
       </div>
 
@@ -55,9 +61,7 @@ export default function AdminDownloadsPage() {
           <ShieldAlert className="h-5 w-5 text-blue-400 shrink-0 mt-0.5" />
           <div>
             <p className="text-sm font-bold">Global Public Download Policy</p>
-            <p className="text-xs text-slate-400">
-              Override all track-level permissions immediately if needed.
-            </p>
+            <p className="text-xs text-slate-400">Override all track-level permissions immediately if needed.</p>
           </div>
         </div>
         <select
@@ -91,9 +95,7 @@ export default function AdminDownloadsPage() {
                     type="button"
                     onClick={() => toggleTrackDownload(t)}
                     className={`px-3 py-1 rounded-full text-[11px] font-semibold inline-flex items-center gap-1 ${
-                      t.is_downloadable
-                        ? "bg-emerald-500/20 text-emerald-300"
-                        : "bg-white/10 text-slate-400"
+                      t.is_downloadable ? "bg-emerald-500/20 text-emerald-300" : "bg-white/10 text-slate-400"
                     }`}
                   >
                     <Download className="h-3 w-3" />

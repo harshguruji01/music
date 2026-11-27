@@ -6,13 +6,15 @@ import Link from "next/link";
 import { Disc3, Download, Heart, ListMusic, Music2, Pause, Play, Sparkles, User } from "lucide-react";
 import type { Album, Artist, Genre, Playlist, Track } from "@/types/music";
 import { BRAND_CONFIG } from "@/lib/supabase/config";
+import { downloadAuthorizedTrackClient } from "@/lib/public-api";
 import { formatCount, formatDuration } from "@/lib/format";
 import { usePlayer } from "@/context/PlayerContext";
+import { useToast } from "@/context/ToastContext";
 
 export function ArtistCard({ artist }: { artist: Artist }) {
   return (
     <Link
-      href={`/artists/${artist.slug}`}
+      href={`/artists/view/?slug=${encodeURIComponent(artist.slug)}`}
       className="group gm-surface rounded-2xl p-4 hover:bg-[var(--gm-surface-hover)] transition-all flex flex-col items-center text-center"
     >
       <div className="relative w-28 h-28 sm:w-32 sm:h-32 rounded-full overflow-hidden mb-3 ring-2 ring-white/10 group-hover:ring-purple-400/60 transition-all">
@@ -43,7 +45,7 @@ export function ArtistCard({ artist }: { artist: Artist }) {
 export function AlbumCard({ album }: { album: Album }) {
   return (
     <Link
-      href={`/albums/${album.slug}`}
+      href={`/albums/view/?slug=${encodeURIComponent(album.slug)}`}
       className="group gm-surface rounded-2xl p-3 hover:bg-[var(--gm-surface-hover)] transition-all block"
     >
       <div className="relative aspect-square rounded-xl overflow-hidden bg-black/40 mb-3">
@@ -69,7 +71,7 @@ export function AlbumCard({ album }: { album: Album }) {
 export function PlaylistCard({ playlist }: { playlist: Playlist }) {
   return (
     <Link
-      href={`/playlists/${playlist.slug}`}
+      href={`/playlists/view/?slug=${encodeURIComponent(playlist.slug)}`}
       className="group gm-surface rounded-2xl p-3 hover:bg-[var(--gm-surface-hover)] transition-all block"
     >
       <div className="relative aspect-square rounded-xl overflow-hidden bg-black/40 mb-3">
@@ -96,7 +98,7 @@ export function PlaylistCard({ playlist }: { playlist: Playlist }) {
 export function GenreCard({ genre }: { genre: Genre }) {
   return (
     <Link
-      href={`/genres/${genre.slug}`}
+      href={`/genres/view/?slug=${encodeURIComponent(genre.slug)}`}
       className="group relative overflow-hidden rounded-2xl p-4 min-h-[110px] flex flex-col justify-between border border-white/10 hover:scale-[1.02] transition-transform"
       style={{
         background: `linear-gradient(135deg, ${genre.color_accent}33 0%, rgba(15,17,26,0.92) 85%)`,
@@ -129,6 +131,7 @@ export function TrackRow({
 }) {
   const { currentTrack, isPlaying, favorites, playTrack, togglePlayPause, toggleFavorite } =
     usePlayer();
+  const { showToast } = useToast();
 
   const isActive = currentTrack?.id === track.id;
   const isFav = favorites.includes(track.id);
@@ -167,7 +170,7 @@ export function TrackRow({
 
       <div className="min-w-0 flex-1">
         <Link
-          href={`/songs/${track.slug}`}
+          href={`/songs/view/?slug=${encodeURIComponent(track.slug)}`}
           className={`text-sm font-semibold truncate block hover:underline ${
             isActive ? "gm-rainbow-text" : "text-[var(--gm-text)]"
           }`}
@@ -197,14 +200,17 @@ export function TrackRow({
         </button>
 
         {canDownload && (
-          <a
-            href={`/api/tracks/${track.id}/download`}
-            download
+          <button
+            type="button"
+            onClick={async () => {
+              const res = await downloadAuthorizedTrackClient(track, downloadPolicy);
+              if (!res.ok && res.error) showToast(res.error, "error");
+            }}
             className="p-1.5 rounded-lg text-[var(--gm-text-muted)] hover:text-emerald-400"
             aria-label={`Download ${track.title}`}
           >
             <Download className="h-4 w-4" />
-          </a>
+          </button>
         )}
 
         <span className="text-xs tabular-nums text-[var(--gm-text-muted)] w-11 text-right">

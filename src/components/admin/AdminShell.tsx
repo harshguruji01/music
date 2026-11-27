@@ -24,22 +24,23 @@ import {
   X,
 } from "lucide-react";
 import { BrandLogo } from "@/components/brand/BrandLogo";
+import { signOutAdminClient } from "@/lib/admin-api";
 
 const ADMIN_NAV = [
-  { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/admin/library", label: "Music Library", icon: Music },
-  { href: "/admin/upload", label: "Upload Music", icon: Upload },
-  { href: "/admin/artists", label: "Artists", icon: Users },
-  { href: "/admin/albums", label: "Albums", icon: Disc3 },
-  { href: "/admin/playlists", label: "Playlists", icon: ListMusic },
-  { href: "/admin/genres", label: "Genres", icon: Tags },
-  { href: "/admin/featured", label: "Featured Music", icon: Sparkles },
-  { href: "/admin/downloads", label: "Download Management", icon: Download },
-  { href: "/admin/statistics", label: "Statistics", icon: BarChart3 },
-  { href: "/admin/storage", label: "Storage", icon: HardDrive },
-  { href: "/admin/settings", label: "Website Settings", icon: Settings },
-  { href: "/admin/activity", label: "Admin Activity", icon: Activity },
-  { href: "/admin/security", label: "Security", icon: Shield },
+  { href: "/admin/", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/admin/library/", label: "Music Library", icon: Music },
+  { href: "/admin/upload/", label: "Upload Music", icon: Upload },
+  { href: "/admin/artists/", label: "Artists", icon: Users },
+  { href: "/admin/albums/", label: "Albums", icon: Disc3 },
+  { href: "/admin/playlists/", label: "Playlists", icon: ListMusic },
+  { href: "/admin/genres/", label: "Genres", icon: Tags },
+  { href: "/admin/featured/", label: "Featured Music", icon: Sparkles },
+  { href: "/admin/downloads/", label: "Download Management", icon: Download },
+  { href: "/admin/statistics/", label: "Statistics", icon: BarChart3 },
+  { href: "/admin/storage/", label: "Storage", icon: HardDrive },
+  { href: "/admin/settings/", label: "Website Settings", icon: Settings },
+  { href: "/admin/activity/", label: "Admin Activity", icon: Activity },
+  { href: "/admin/security/", label: "Security", icon: Shield },
 ];
 
 export function AdminShell({
@@ -56,15 +57,16 @@ export function AdminShell({
 
   const handleLogout = async () => {
     setLoggingOut(true);
-    await fetch("/api/admin/logout", { method: "POST" }).catch(() => {});
-    router.push("/admin/login");
-    router.refresh();
+    await signOutAdminClient();
+    router.replace("/admin/login/");
   };
+
+  const normalizedPath = pathname.endsWith("/") ? pathname : `${pathname}/`;
 
   const navContent = (
     <div className="flex flex-col h-full">
       <div className="px-4 py-5 border-b border-white/10">
-        <Link href="/admin" onClick={() => setMobileOpen(false)}>
+        <Link href="/admin/" onClick={() => setMobileOpen(false)}>
           <BrandLogo variant="admin" />
         </Link>
       </div>
@@ -72,7 +74,7 @@ export function AdminShell({
       <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1 gm-scrollbar">
         {ADMIN_NAV.map((item) => {
           const Icon = item.icon;
-          const active = pathname === item.href;
+          const active = normalizedPath === item.href;
           return (
             <Link
               key={item.href}
@@ -144,7 +146,7 @@ export function AdminShell({
 
           <div className="flex items-center gap-2">
             <Link
-              href="/admin/upload"
+              href="/admin/upload/"
               className="px-3.5 py-2 rounded-xl gm-rainbow-gradient text-white text-xs font-bold inline-flex items-center gap-1.5 shadow"
             >
               <Upload className="h-3.5 w-3.5" />
@@ -163,6 +165,18 @@ export function AdminShell({
         <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-[1440px] w-full mx-auto">
           {children}
         </main>
+
+        <footer className="border-t border-white/10 px-6 py-5 text-xs text-slate-400">
+          <div className="max-w-[1440px] mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
+            <div>
+              <span className="font-bold text-white">Guru Music</span>{" "}
+              <span className="font-extrabold gm-animated-brand">by HarshGuruJi</span>
+            </div>
+            <span className="text-[11px] uppercase tracking-wider gm-animated-brand font-bold">
+              ADMIN CONTROL CENTER
+            </span>
+          </div>
+        </footer>
       </div>
 
       {mobileOpen && (

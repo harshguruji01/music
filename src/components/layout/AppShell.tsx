@@ -31,7 +31,8 @@ import { QueuePanel } from "@/components/player/QueuePanel";
 import { useTheme } from "@/context/ThemeContext";
 import { usePlayer } from "@/context/PlayerContext";
 import { BRAND_CONFIG } from "@/lib/supabase/config";
-import type { Track } from "@/types/music";
+import { getSiteSettingsClient, searchPublishedCatalogClient } from "@/lib/public-api";
+import type { SiteSettings, Track } from "@/types/music";
 
 const PRIMARY_NAV = [
   { href: "/", label: "Home", icon: Home },
@@ -52,18 +53,15 @@ const DISCOVER_NAV = [
 
 export function AppShell({
   children,
-  downloadPolicy = "track_level",
-  maintenanceMode = false,
 }: {
   children: React.ReactNode;
-  downloadPolicy?: "track_level" | "disabled";
-  maintenanceMode?: boolean;
 }) {
   const pathname = usePathname();
   const router = useRouter();
   const { theme, toggleTheme } = useTheme();
   const { currentTrack, isOnline, playTrack } = usePlayer();
 
+  const [siteSettings, setSiteSettings] = useState<SiteSettings | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [suggestions, setSuggestions] = useState<Track[]>([]);
@@ -71,6 +69,11 @@ export function AppShell({
   const searchBoxRef = useRef<HTMLDivElement>(null);
 
   const isAdminRoute = pathname.startsWith("/admin");
+
+  useEffect(() => {
+    if (isAdminRoute) return;
+    getSiteSettingsClient().then(setSiteSettings).catch(() => {});
+  }, [isAdminRoute]);
 
   useEffect(() => {
     const close = (e: MouseEvent) => {
@@ -86,13 +89,15 @@ export function AppShell({
     const q = searchQuery.trim();
     if (q.length < 2) return;
     const timer = setTimeout(() => {
-      fetch(`/api/search?q=${encodeURIComponent(q)}&type=songs&limit=5`)
-        .then((r) => r.json())
+      searchPublishedCatalogClient({ q, type: "songs", limit: 5 })
         .then((d) => setSuggestions(Array.isArray(d.tracks) ? d.tracks : []))
         .catch(() => setSuggestions([]));
     }, 220);
     return () => clearTimeout(timer);
   }, [searchQuery]);
+
+  const downloadPolicy = siteSettings?.public_download_policy || "track_level";
+  const maintenanceMode = siteSettings?.maintenance_mode || false;
 
   if (isAdminRoute) {
     return <>{children}</>;
@@ -273,7 +278,7 @@ export function AppShell({
                         </div>
                       </button>
                       <Link
-                        href={`/songs/${track.slug}`}
+                        href={`/songs/view/?slug=${encodeURIComponent(track.slug)}`}
                         onClick={() => setSuggestOpen(false)}
                         className="text-[11px] text-purple-400 hover:underline px-2"
                       >
@@ -330,14 +335,26 @@ export function AppShell({
           {children}
         </main>
 
-        <footer className="border-t border-[var(--gm-border)] px-6 py-5 text-xs text-[var(--gm-text-muted)] pb-24 md:pb-24">
-          <div className="max-w-[1440px] mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <span className="font-bold text-[var(--gm-text)]">GURU MUSIC</span>
-              <span>•</span>
-              <span>Developed by HarshGuruJi</span>
+        <footer className="border-t border-[var(--gm-border)] px-6 py-7 text-xs text-[var(--gm-text-muted)] pb-24 md:pb-24">
+          <div className="max-w-[1440px] mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <Image
+                src="/brand/guru-music-navbar.png"
+                alt="Guru Music"
+                width={32}
+                height={32}
+                className="rounded-lg object-cover shadow-md shadow-purple-500/20"
+              />
+              <div className="leading-tight">
+                <p className="text-sm font-black tracking-wide text-[var(--gm-text)]">
+                  Guru Music
+                </p>
+                <p className="text-xs font-extrabold tracking-wide gm-animated-brand">
+                  by HarshGuruJi
+                </p>
+              </div>
             </div>
-            <p className="tracking-wider uppercase text-[11px] font-semibold gm-rainbow-text">
+            <p className="tracking-wider uppercase text-[11px] font-bold gm-animated-brand">
               {BRAND_CONFIG.tagline}
             </p>
           </div>

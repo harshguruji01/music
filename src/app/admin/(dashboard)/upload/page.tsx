@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import {
@@ -10,14 +10,18 @@ import {
   Image as ImageIcon,
   RefreshCw,
   Upload,
-  XCircle,
 } from "lucide-react";
 import type { Album, Artist, Genre } from "@/types/music";
 import { formatBytes, formatDuration } from "@/lib/format";
+import {
+  fetchAdminAlbumsClient,
+  fetchAdminArtistsClient,
+  fetchAdminGenresClient,
+  uploadTrackClient,
+} from "@/lib/admin-api";
 
 export default function AdminUploadPage() {
   const router = useRouter();
-  const xhrRef = useRef<XMLHttpRequest | null>(null);
 
   const [artists, setArtists] = useState<Artist[]>([]);
   const [albums, setAlbums] = useState<Album[]>([]);
@@ -31,9 +35,9 @@ export default function AdminUploadPage() {
   const [releaseDate, setReleaseDate] = useState("");
   const [language, setLanguage] = useState("Hindi");
   const [lyrics, setLyrics] = useState("");
-  const [isPublished, setIsPublished] = useState(false);
+  const [isPublished, setIsPublished] = useState(true);
   const [isFeatured, setIsFeatured] = useState(false);
-  const [isDownloadable, setIsDownloadable] = useState(false);
+  const [isDownloadable, setIsDownloadable] = useState(true);
   const [allowDuplicate, setAllowDuplicate] = useState(false);
 
   const [audioFile, setAudioFile] = useState<File | null>(null);
@@ -50,14 +54,12 @@ export default function AdminUploadPage() {
 
   useEffect(() => {
     Promise.all([
-      fetch("/api/admin/artists").then((r) => r.json()),
-      fetch("/api/admin/albums").then((r) => r.json()),
-      fetch("/api/admin/genres").then((r) => r.json()),
-    ]).then(([aRes, alRes, gRes]) => {
-      const aList = aRes.artists || [];
-      const gList = gRes.genres || [];
+      fetchAdminArtistsClient(),
+      fetchAdminAlbumsClient(),
+      fetchAdminGenresClient(),
+    ]).then(([aList, alList, gList]) => {
       setArtists(aList);
-      setAlbums(alRes.albums || []);
+      setAlbums(alList);
       setGenres(gList);
       if (aList[0]) setArtistId(aList[0].id);
       if (gList[0]) setGenreId(gList[0].id);
@@ -91,7 +93,7 @@ export default function AdminUploadPage() {
     setCoverPreviewUrl(URL.createObjectURL(file));
   };
 
-  const startUpload = () => {
+  const startUpload = async () => {
     setError(null);
     setSuccessMsg(null);
 
@@ -100,71 +102,35 @@ export default function AdminUploadPage() {
       return;
     }
 
-    const fd = new FormData();
-    fd.append("title", title.trim());
-    fd.append("artist_id", artistId);
-    fd.append("genre_id", genreId);
-    if (albumId) fd.append("album_id", albumId);
-    fd.append("description", description);
-    if (releaseDate) fd.append("release_date", releaseDate);
-    fd.append("language", language);
-    fd.append("lyrics", lyrics);
-    fd.append("duration_seconds", String(durationSeconds));
-    fd.append("is_published", String(isPublished));
-    fd.append("is_featured", String(isFeatured));
-    fd.append("is_downloadable", String(isDownloadable));
-    fd.append("allow_duplicate", String(allowDuplicate));
-    fd.append("audio", audioFile);
-    fd.append("cover", coverFile);
-
     setUploading(true);
-    setProgress(0);
-
-    const xhr = new XMLHttpRequest();
-    xhrRef.current = xhr;
-
-    xhr.upload.onprogress = (ev) => {
-      if (ev.lengthComputable) {
-        setProgress(Math.round((ev.loaded / ev.total) * 100));
-      }
-    };
-
-    xhr.onload = () => {
+    setProgress(5);
+    try {
+      const inserted = await uploadTrackClient({
+        title: title.trim(),
+        artistId,
+        genreId,
+        albumId: albumId || undefined,
+        description,
+        releaseDate: releaseDate || undefined,
+        language,
+        lyrics,
+        durationSeconds,
+        isPublished,
+        isFeatured,
+        isDownloadable,
+        allowDuplicate,
+        audioFile,
+        coverFile,
+        onProgress: setProgress,
+      });
+      setSuccessMsg(
+        `Uploaded "${inserted.title}" (${isPublished ? "Published on public player" : "Saved as private draft"}).`
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Upload failed.");
+    } finally {
       setUploading(false);
-      try {
-        const res = JSON.parse(xhr.responseText || "{}");
-        if (xhr.status >= 200 && xhr.status < 300) {
-          setSuccessMsg(
-            `Uploaded "${res.track?.title || title}" (${
-              isPublished ? "Published publicly" : "Saved securely as private draft"
-            }).`
-          );
-          setProgress(100);
-        } else {
-          setError(res.error || `Upload failed with status ${xhr.status}`);
-        }
-      } catch {
-        setError("Unexpected response from upload server.");
-      }
-    };
-
-    xhr.onerror = () => {
-      setUploading(false);
-      setError("Network interruption during upload. You can retry safely.");
-    };
-
-    xhr.onabort = () => {
-      setUploading(false);
-      setProgress(0);
-      setError("Upload cancelled.");
-    };
-
-    xhr.open("POST", "/api/admin/upload");
-    xhr.send(fd);
-  };
-
-  const cancelUpload = () => {
-    xhrRef.current?.abort();
+    }
   };
 
   return (
@@ -182,7 +148,7 @@ export default function AdminUploadPage() {
           <span>You need at least one artist profile before uploading a track.</span>
           <button
             type="button"
-            onClick={() => router.push("/admin/artists")}
+            onClick={() => router.push("/admin/artists/")}
             className="px-3 py-1.5 rounded-lg bg-amber-400 text-black font-bold shrink-0"
           >
             Create Artist
@@ -216,7 +182,7 @@ export default function AdminUploadPage() {
           </div>
           <button
             type="button"
-            onClick={() => router.push("/admin/library")}
+            onClick={() => router.push("/admin/library/")}
             className="px-3 py-1.5 rounded-lg bg-emerald-500 text-black font-bold shrink-0"
           >
             Open Library
@@ -224,7 +190,6 @@ export default function AdminUploadPage() {
         </div>
       )}
 
-      {/* Drag and drop files */}
       <div className="grid md:grid-cols-2 gap-4">
         <label
           onDragOver={(e) => e.preventDefault()}
@@ -252,12 +217,7 @@ export default function AdminUploadPage() {
             </p>
           </div>
           {audioPreviewUrl && (
-            <audio
-              controls
-              src={audioPreviewUrl}
-              className="w-full mt-2"
-              onClick={(e) => e.stopPropagation()}
-            />
+            <audio controls src={audioPreviewUrl} className="w-full mt-2" onClick={(e) => e.stopPropagation()} />
           )}
         </label>
 
@@ -293,7 +253,6 @@ export default function AdminUploadPage() {
         </label>
       </div>
 
-      {/* Metadata Form */}
       <div className="gm-surface rounded-2xl p-6 space-y-4">
         <div className="grid sm:grid-cols-2 gap-4">
           <div className="space-y-1">
@@ -389,7 +348,7 @@ export default function AdminUploadPage() {
         </div>
 
         <div className="space-y-1">
-          <label className="text-xs font-semibold text-slate-300">Lyrics (optional, authorized only)</label>
+          <label className="text-xs font-semibold text-slate-300">Lyrics (optional)</label>
           <textarea
             rows={3}
             value={lyrics}
@@ -401,39 +360,19 @@ export default function AdminUploadPage() {
 
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-2">
           <label className="flex items-center gap-2 text-xs cursor-pointer">
-            <input
-              type="checkbox"
-              checked={isPublished}
-              onChange={(e) => setIsPublished(e.target.checked)}
-              className="accent-emerald-500"
-            />
+            <input type="checkbox" checked={isPublished} onChange={(e) => setIsPublished(e.target.checked)} className="accent-emerald-500" />
             Publish immediately
           </label>
           <label className="flex items-center gap-2 text-xs cursor-pointer">
-            <input
-              type="checkbox"
-              checked={isFeatured}
-              onChange={(e) => setIsFeatured(e.target.checked)}
-              className="accent-amber-500"
-            />
+            <input type="checkbox" checked={isFeatured} onChange={(e) => setIsFeatured(e.target.checked)} className="accent-amber-500" />
             Feature on homepage
           </label>
           <label className="flex items-center gap-2 text-xs cursor-pointer">
-            <input
-              type="checkbox"
-              checked={isDownloadable}
-              onChange={(e) => setIsDownloadable(e.target.checked)}
-              className="accent-blue-500"
-            />
+            <input type="checkbox" checked={isDownloadable} onChange={(e) => setIsDownloadable(e.target.checked)} className="accent-blue-500" />
             Allow public download
           </label>
           <label className="flex items-center gap-2 text-xs cursor-pointer">
-            <input
-              type="checkbox"
-              checked={allowDuplicate}
-              onChange={(e) => setAllowDuplicate(e.target.checked)}
-              className="accent-purple-500"
-            />
+            <input type="checkbox" checked={allowDuplicate} onChange={(e) => setAllowDuplicate(e.target.checked)} className="accent-purple-500" />
             Allow duplicate audio
           </label>
         </div>
@@ -445,10 +384,7 @@ export default function AdminUploadPage() {
               <span>{progress}%</span>
             </div>
             <div className="h-2 rounded-full bg-white/10 overflow-hidden">
-              <div
-                className="h-full gm-rainbow-gradient transition-all duration-150"
-                style={{ width: `${progress}%` }}
-              />
+              <div className="h-full gm-rainbow-gradient transition-all duration-150" style={{ width: `${progress}%` }} />
             </div>
           </div>
         )}
@@ -463,16 +399,6 @@ export default function AdminUploadPage() {
             <Upload className="h-4 w-4" />
             {uploading ? `Uploading (${progress}%)...` : isPublished ? "Upload & Publish" : "Save as Draft"}
           </button>
-
-          {uploading && (
-            <button
-              type="button"
-              onClick={cancelUpload}
-              className="px-4 py-3 rounded-xl bg-rose-500/20 text-rose-300 text-sm font-semibold inline-flex items-center gap-1.5"
-            >
-              <XCircle className="h-4 w-4" /> Cancel
-            </button>
-          )}
         </div>
       </div>
     </div>

@@ -5,8 +5,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "next build",
-    "start": "next start",
+    "build": "next build && node scripts/export-to-root.mjs",
+    "start": "npx serve out",
     "lint": "eslint src",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",

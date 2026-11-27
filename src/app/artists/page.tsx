@@ -1,11 +1,27 @@
-import { getPublishedArtists } from "@/lib/data";
-import { ArtistCard, EmptyLibraryState } from "@/components/music/CollectionCards";
+"use client";
 
-export const dynamic = "force-dynamic";
-export const metadata = { title: "Artists" };
+import React, { useEffect, useState } from "react";
+import { getPublishedArtistsClient } from "@/lib/public-api";
+import { ArtistCard, CardGridSkeleton, EmptyLibraryState } from "@/components/music/CollectionCards";
+import type { Artist } from "@/types/music";
 
-export default async function ArtistsPage() {
-  const artists = await getPublishedArtists(60);
+export default function ArtistsPage() {
+  const [artists, setArtists] = useState<Artist[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    getPublishedArtistsClient(60)
+      .then((a) => {
+        if (active) setArtists(a);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -16,7 +32,9 @@ export default async function ArtistsPage() {
         </p>
       </div>
 
-      {artists.length === 0 ? (
+      {loading ? (
+        <CardGridSkeleton count={6} />
+      ) : artists.length === 0 ? (
         <EmptyLibraryState
           title="No Published Artists Yet"
           subtitle="Create and publish artist profiles in the Admin Control Center to showcase creators here."

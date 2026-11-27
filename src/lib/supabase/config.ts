@@ -1,22 +1,33 @@
-export function isSupabasePublicConfigured(): boolean {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  return Boolean(
-    url &&
-      anon &&
-      url.startsWith("https://") &&
-      !url.includes("your-project-ref") &&
-      !anon.includes("your-supabase-anon-key")
-  );
+export function getSupabaseConfigValues(): { url: string; anonKey: string } {
+  const envUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+  const envAnon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+
+  if (
+    envUrl.startsWith("https://") &&
+    !envUrl.includes("your-project-ref") &&
+    envAnon &&
+    !envAnon.includes("your-supabase-anon-key")
+  ) {
+    return { url: envUrl, anonKey: envAnon };
+  }
+
+  if (typeof window !== "undefined") {
+    try {
+      const saved = JSON.parse(localStorage.getItem("gm_runtime_supabase_v1") || "null");
+      if (saved && typeof saved.url === "string" && typeof saved.anonKey === "string") {
+        return { url: saved.url, anonKey: saved.anonKey };
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  return { url: "", anonKey: "" };
 }
 
-export function isSupabaseAdminConfigured(): boolean {
-  const service = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  return Boolean(
-    isSupabasePublicConfigured() &&
-      service &&
-      !service.includes("your-supabase-service-role-key")
-  );
+export function isSupabasePublicConfigured(): boolean {
+  const { url, anonKey } = getSupabaseConfigValues();
+  return Boolean(url.startsWith("https://") && anonKey.length > 10);
 }
 
 export const BRAND_CONFIG = {
