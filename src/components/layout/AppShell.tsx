@@ -70,13 +70,18 @@ export function AppShell({
   const { currentTrack, isOnline, playTrack } = usePlayer();
   const { user, musicUser, creator, isGoogleAuthenticated } = useAuth();
 
+  const loginHref =
+    pathname && !pathname.startsWith("/auth")
+      ? `/auth/?next=${encodeURIComponent(pathname)}`
+      : "/auth/";
+
   const discoverNavItems = DISCOVER_NAV.filter(
     (item) => item.href !== "/studio" || Boolean(user && isGoogleAuthenticated && creator)
   ).map((item) =>
     item.href === "/auth"
       ? {
           ...item,
-          href: user ? "/profile" : "/auth",
+          href: user ? "/profile" : loginHref,
           label: user ? "Account & Settings" : "Sign In",
         }
       : item
@@ -385,7 +390,7 @@ export function AppShell({
                 </Link>
               ) : (
                 <Link
-                  href="/auth/"
+                  href={loginHref}
                   className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl gm-rainbow-gradient text-white text-xs font-bold"
                 >
                   <User className="h-3.5 w-3.5" />
@@ -489,7 +494,7 @@ export function AppShell({
           { href: "/explore", label: "Explore", icon: Compass },
           { href: "/search", label: "Search", icon: Search },
           { href: "/library", label: "Library", icon: Library },
-          { href: user ? "/profile" : "/auth", label: "Profile", icon: User },
+          { href: user ? "/profile" : loginHref, label: "Profile", icon: User },
         ].map((item) => {
           const Icon = item.icon;
           const active = pathname === item.href;

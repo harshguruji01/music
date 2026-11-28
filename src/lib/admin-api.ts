@@ -23,6 +23,7 @@ import type {
   AdminActivityLog,
   Album,
   Artist,
+  Creator,
   CreatorCredential,
   Genre,
   ModerationLog,
@@ -982,5 +983,62 @@ export async function toggleAdminMusicUserActiveClient(userId: string, nextActiv
     action: nextActive ? "admin.user.activate" : "admin.user.suspend",
     resourceType: "music_users",
     resourceId: userId,
+  });
+}
+
+export async function fetchAdminCreatorsDirectoryClient(): Promise<Creator[]> {
+  const supabase = getSupabaseBrowserClient()!;
+  const { data, error } = await supabase
+    .from("creators")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(200);
+  if (error) throw new Error(error.message);
+  return (data || []) as Creator[];
+}
+
+export async function setAdminCreatorStatusClient(params: {
+  creatorId: string;
+  nextStatus: "verified" | "unverified" | "suspended" | "rejected";
+  actionLabel: "restore" | "suspend" | "ban";
+}) {
+  const supabase = getSupabaseBrowserClient()!;
+  const { error } = await supabase
+    .from("creators")
+    .update({
+      verification_status: params.nextStatus,
+      is_verified: params.nextStatus === "verified",
+    })
+    .eq("id", params.creatorId);
+  if (error) throw new Error(error.message);
+
+  if (params.nextStatus === "suspended" || params.nextStatus === "rejected") {
+    await supabase
+      .from("creator_sessions")
+      .update({ revoked_at: new Date().toISOString() })
+      .eq("creator_id", params.creatorId)
+      .is("revoked_at", null);
+  }
+
+  await logAdminActionClient({
+    action: `admin.creator.${params.actionLabel}`,
+    resourceType: "creator",
+    resourceId: params.creatorId,
+    details: { status: params.nextStatus },
+  });
+}
+
+export async function deleteAdminCreatorClient(creatorId: string) {
+  const supabase = getSupabaseBrowserClient()!;
+  await supabase.from("creator_sessions").delete().eq("creator_id", creatorId);
+  await supabase.from("creator_auth_credentials").delete().eq("creator_id", creatorId);
+  await supabase.from("creator_credentials").delete().eq("creator_id", creatorId);
+  const { error } = await supabase.from("creators").delete().eq("id", creatorId);
+  if (error) throw new Error(error.message);
+
+  await logAdminActionClient({
+    action: "admin.creator.delete",
+    resourceType: "creator",
+    resourceId: creatorId,
   });
 }

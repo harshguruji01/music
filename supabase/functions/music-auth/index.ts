@@ -304,8 +304,8 @@ Deno.serve(async (req: Request) => {
       .eq("id", cred.creator_id)
       .single();
 
-    if (!creator || creator.verification_status === "suspended") {
-      return json(403, { error: "This creator account is currently suspended." });
+    if (!creator || creator.verification_status === "suspended" || creator.verification_status === "rejected") {
+      return json(403, { error: "This creator account is currently suspended or banned." });
     }
 
     const rawSessionToken = randomBytes(32).toString("hex");
@@ -359,7 +359,7 @@ Deno.serve(async (req: Request) => {
       .eq("user_id", user.id)
       .maybeSingle();
 
-    if (!creator || creator.verification_status === "suspended") {
+    if (!creator || creator.verification_status === "suspended" || creator.verification_status === "rejected") {
       return json(403, { valid: false, reason: "creator_suspended" });
     }
 

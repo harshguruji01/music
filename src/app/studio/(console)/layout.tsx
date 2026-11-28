@@ -58,7 +58,7 @@ export default function StudioProtectedLayout({
       }
       return;
     }
-    if (creator.verification_status === "suspended") {
+    if (creator.verification_status === "suspended" || creator.verification_status === "rejected") {
       setGate("creator_suspended");
       return;
     }

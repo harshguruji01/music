@@ -7,14 +7,7 @@ import { AlertCircle, ArrowLeft, CheckCircle2 } from "lucide-react";
 import { BrandLogo } from "@/components/brand/BrandLogo";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/context/ToastContext";
-import { completeGoogleOAuthCallback } from "@/lib/music-auth";
-
-function getSafeNextPath(raw: string | null): string {
-  if (!raw || !raw.startsWith("/") || raw.startsWith("//")) {
-    return "/profile/";
-  }
-  return raw;
-}
+import { completeGoogleOAuthCallback, consumePendingAuthNextPath } from "@/lib/music-auth";
 
 function CallbackInner() {
   const router = useRouter();
@@ -43,7 +36,7 @@ function CallbackInner() {
       }
 
       const code = searchParams.get("code");
-      const nextPath = getSafeNextPath(searchParams.get("next"));
+      const nextPath = consumePendingAuthNextPath(searchParams.get("next"), "/profile/");
 
       try {
         const res = await completeGoogleOAuthCallback(code);

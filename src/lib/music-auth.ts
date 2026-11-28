@@ -10,6 +10,25 @@ import type { Creator, MusicLoginLog, MusicUser, MusicUserPreferences } from "@/
 const CREATOR_SESSION_KEY = "gm_creator_session_token_v1";
 const CREATOR_SESSION_AT_KEY = "gm_creator_session_at_v1";
 const CREATOR_SESSION_MAX_AGE_MS = 3600 * 1000; // 1 hour auto-logout
+const AUTH_NEXT_PATH_KEY = "gm_auth_next_path_v1";
+
+export function getSafeInternalPath(raw: string | null | undefined, fallback = "/profile/"): string {
+  if (!raw || !raw.startsWith("/") || raw.startsWith("//")) return fallback;
+  return raw;
+}
+
+export function consumePendingAuthNextPath(queryNext?: string | null, fallback = "/profile/"): string {
+  let stored: string | null = null;
+  if (typeof window !== "undefined") {
+    try {
+      stored = sessionStorage.getItem(AUTH_NEXT_PATH_KEY);
+      sessionStorage.removeItem(AUTH_NEXT_PATH_KEY);
+    } catch {
+      stored = null;
+    }
+  }
+  return getSafeInternalPath(queryNext || stored, fallback);
+}
 
 export function validateCreatorUsername(username: string): string | null {
   const clean = username.trim().toLowerCase();
@@ -131,9 +150,18 @@ export async function signInMusicWithGoogle(nextPath = "/profile/"): Promise<{ o
   const supabase = getSupabaseBrowserClient();
   if (!supabase) return { ok: false, error: "Supabase connection unavailable." };
 
+  const safeNext = getSafeInternalPath(nextPath, "/profile/");
+  if (typeof window !== "undefined") {
+    try {
+      sessionStorage.setItem(AUTH_NEXT_PATH_KEY, safeNext);
+    } catch {
+      // ignore
+    }
+  }
+
   const callbackUrl =
     typeof window !== "undefined"
-      ? `${window.location.origin}/auth/callback/?next=${encodeURIComponent(nextPath)}`
+      ? `${window.location.origin}/auth/callback/`
       : undefined;
 
   const { error } = await supabase.auth.signInWithOAuth({
@@ -158,8 +186,11 @@ export async function completeGoogleOAuthCallback(code: string | null): Promise<
   if (!supabase) return { ok: false, error: "Supabase connection unavailable." };
 
   if (code) {
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
-    if (error) return { ok: false, error: error.message };
+    const { data: existingSession } = await supabase.auth.getSession();
+    if (!existingSession?.session) {
+      const { error } = await supabase.auth.exchangeCodeForSession(code);
+      if (error) return { ok: false, error: error.message };
+    }
   }
 
   const {
